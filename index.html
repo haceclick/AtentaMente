@@ -444,24 +444,42 @@
       cerrarModalConfirm();
   }
 
+// Pega aquí la URL que copiaste en el Paso 2
+  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-ZIsovlz_-wUP1TdzjLpL_Xp4JqXt2-_ZKm0Y-gi6555SexGy2iMi5nVbN-MJzzMp_w/exec"; 
+
+  // Esta función es tu nuevo "google.script.run"
+  function llamarBackend(accion, parametros, funcionExito, funcionError) {
+    fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // text/plain evita bloqueos de seguridad CORS
+      body: JSON.stringify({ accion: accion, parametros: parametros })
+    })
+    .then(respuesta => respuesta.json())
+    .then(datos => {
+      if (datos.estado === 'exito') {
+        if (funcionExito) funcionExito(datos.respuesta);
+      } else {
+        if (funcionError) funcionError(new Error(datos.mensaje));
+      }
+    })
+    .catch(error => {
+      if (funcionError) funcionError(error);
+    });
+  }
+
   // --- ARRANQUE DE LA APP ---
   window.onload = function() {
     if(typeof lucide !== 'undefined') lucide.createIcons();
     
-    google.script.url.getLocation(function(location) {
-        let token = location.parameter.uid || "";
-        USER_EMAIL_GLOBAL = token.trim();
-        
-        console.log("🔑 Token enviado al servidor:", USER_EMAIL_GLOBAL ? USER_EMAIL_GLOBAL : "Ninguno (se usará sesión de Google)");
+    // 1. Capturamos el UID directamente de la URL de tu portal (ej: ?uid=juan@mail.com)
+    const urlParams = new URLSearchParams(window.location.search);
+    USER_EMAIL_GLOBAL = urlParams.get('uid') || "";
+    
+    console.log("🔑 Token:", USER_EMAIL_GLOBAL ? USER_EMAIL_GLOBAL : "Ninguno");
 
-        // Ya NO bloqueamos acá. Enviamos la orden al servidor directamente.
-        // Si hay token, el servidor validará el token. Si no hay, validará el Gmail del navegador.
-        google.script.run
-          .withSuccessHandler(initApp)
-          .withFailureHandler(showError)
-          .getAppData(USER_EMAIL_GLOBAL); 
-    });
-  };
+    // 2. Llamamos a Google usando nuestro nuevo puente
+    llamarBackend("getAppData", [USER_EMAIL_GLOBAL], initApp, showError);
+  }
 
   function initApp(data) {
     CACHE_DATA = data;
@@ -1341,4 +1359,5 @@
 </script>
 
   </body>
+
 </html>
