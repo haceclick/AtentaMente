@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+      body { font-family: 'Inter', sans-serif; background-color: #f8fafc; font-size: 0.875rem; }
+      
+      aside { background-color: #008395; color: white; overflow-x: hidden; }
+      .font-logo { font-family: 'Patrick Hand', cursive; }
+
+      .nav-item {
+        display: flex; align-items: center; 
+        width: calc(100% - 10px);
+        padding: 10px 16px;
+        color: rgba(255,255,255,0.95); transition: all 0.2s;
+        border-radius: 30px 0 0 30px; margin-left: 10px; border: 1px solid transparent;
+        font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+        white-space: nowrap;
+      }
+      .nav-item:hover { background-color: rgba(255,255,255,0.15); color: white; }
+      .nav-item.active {
+        background-color: #f8fafc; color: #008395; font-weight: 800;
+        box-shadow: -5px 5px 15px rgba(0,0,0,0.15); border-left: 4px solid #006064;
+      }
+
+      .loader { border: 3px solid #f3f3f3; border-top: 3px solid #008395; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      .hidden { display: none !important; }
+      .sidebar-mobile-hidden { transform: translateX(-100%); }
+      .sidebar-mobile-visible { transform: translateX(0); }
+
+      .timeline-item::before {
+        content: ''; position: absolute; left: -9px; top: 0; width: 16px; height: 16px;
+        border-radius: 50%; background-color: #008395; border: 3px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      }
+      
+      #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 100; }
+      .toast { 
+        padding: 12px 20px; border-radius: 8px; color: white; font-size: 13px; font-weight: 600; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 10px; 
+        animation: slideIn 0.3s ease-out forwards; 
+        display: flex; align-items: center; gap: 8px;
+      }
+      .toast.success { background-color: #10B981; }
+      .toast.error { background-color: #EF4444; }
+      @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      
+      .bar-graph-col { transition: all 0.5s ease; }
+      .bar-graph-col:hover { opacity: 0.8; }
+
+      .filter-input {
+          width: 100%; background: #fff; border: 1px solid #e2e8f0;
+          border-radius: 4px; padding: 2px 6px; font-size: 10px;
+          margin-top: 4px; color: #475569; font-weight: normal;
+      }
+      .filter-input:focus { outline: 1px solid #008395; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.575.0",
+    "react/": "https://esm.sh/react@^19.2.4/"
+  }
+}
+</script>
+</head>
+  <body class="flex h-screen overflow-hidden text-slate-800 bg-slate-50">
+
+    <div id="toast-container"></div>
+    
+    <div id="modal-whatsapp" class="hidden fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+       <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden">
+          <div class="p-6 text-center">
+             <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4"><i data-lucide="message-circle" class="w-6 h-6 text-green-600"></i></div>
+             <h3 class="text-lg font-bold text-gray-900 mb-2">Devolución Guardada</h3>
+             <p class="text-sm text-gray-500 mb-6">¿Desea enviar esta devolución al tutor por WhatsApp ahora?</p>
+             <div class="flex gap-3 justify-center">
+                 <button onclick="cerrarModalWhatsapp()" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-xs transition-colors">No, gracias</button>
+                 <button onclick="confirmarEnvioWhatsapp()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-xs shadow-md transition-colors flex items-center gap-2"><i data-lucide="send" class="w-3 h-3"></i> Enviar WhatsApp</button>
+             </div>
+          </div>
+       </div>
+    </div>
+
+    <div id="modal-confirm" class="hidden fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+       <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden">
+          <div class="p-6 text-center">
+             <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4"><i data-lucide="alert-triangle" class="w-6 h-6 text-red-600"></i></div>
+             <h3 class="text-lg font-bold text-gray-900 mb-2">Confirmar Eliminación</h3>
+             <p class="text-sm text-gray-500 mb-6" id="confirm-msg">¿Estás seguro de que deseas eliminar esto?</p>
+             <div class="flex gap-3 justify-center">
+                 <button onclick="cerrarModalConfirm()" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-xs transition-colors">Cancelar</button>
+                 <button onclick="ejecutarAccionConfirmada()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs shadow-md transition-colors flex items-center gap-2"><i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar</button>
+             </div>
+          </div>
+       </div>
+    </div>
+
+    <div id="mobile-overlay" onclick="toggleMenu()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 flex flex-col z-50 shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out md:translate-x-0 md:relative md:inset-auto">
+      
+      <div class="h-32 flex flex-col items-center justify-center border-b border-white/10 pt-4 pb-4 bg-[#008395] relative">
+        <button onclick="toggleMenu()" class="absolute top-2 right-2 text-white/70 hover:text-white md:hidden">
+            <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+        <img src="https://lh3.googleusercontent.com/d/1l7-c-1K0afpHzeCFU3DBhfIQSdhZpXMP" alt="Logo" class="w-[85%] h-full object-contain">
+      </div>
+
+      <nav class="flex-1 py-4 overflow-y-auto space-y-0.5">
+        <button onclick="nav('dashboard')" id="btn-dashboard" class="nav-item active"><i data-lucide="layout-dashboard" class="w-4 h-4 mr-3"></i> Panel de Control</button>
+        <div class="px-6 py-2 mt-4 text-[9px] font-bold text-white/50 uppercase">Gestión</div>
+        <button onclick="nav('pacientes')" id="btn-pacientes" class="nav-item"><i data-lucide="users" class="w-4 h-4 mr-3"></i> Pacientes</button>
+        <button onclick="nav('misfacturas')" id="btn-misfacturas" class="nav-item"><i data-lucide="file-text" class="w-4 h-4 mr-3"></i> Historial de Cobros</button>
+        <div class="px-6 py-2 mt-2 text-[9px] font-bold text-white/50 uppercase">Gestor de Archivos</div>
+        <button onclick="nav('facturacion')" id="btn-facturacion" class="nav-item"><i data-lucide="receipt" class="w-4 h-4 mr-3"></i> Facturación</button>
+        <button onclick="nav('derivacion')" id="btn-derivacion" class="nav-item"><i data-lucide="network" class="w-4 h-4 mr-3"></i> Derivación</button>
+        <button onclick="nav('horarios')" id="btn-horarios" class="nav-item"><i data-lucide="calendar-clock" class="w-4 h-4 mr-3"></i> Horarios</button>
+        <button onclick="nav('documentacion')" id="btn-documentacion" class="nav-item"><i data-lucide="folder-kanban" class="w-4 h-4 mr-3"></i> Documentación</button>
+        <button onclick="nav('instructivos')" id="btn-instructivos" class="nav-item"><i data-lucide="book-open" class="w-4 h-4 mr-3"></i> Instructivos</button>
+      </nav>
+
+      <div class="p-4 bg-black/20">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-8 h-8 rounded-full bg-white text-[#008395] flex items-center justify-center font-bold text-xs shadow-md"><i data-lucide="user" class="w-4 h-4"></i></div>
+          <div class="overflow-hidden text-white">
+            <p id="user-email" class="text-[10px] font-bold truncate w-32">Cargando...</p>
+            <p id="user-title" class="text-[9px] opacity-90 font-medium tracking-wide text-teal-100">...</p>
+            <p id="user-role" class="text-[8px] opacity-60 uppercase hidden">...</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative w-full">
+      <div id="loader" class="absolute inset-0 bg-slate-50 z-50 flex flex-col items-center justify-center">
+         <img src="https://lh3.googleusercontent.com/d/1N5lTBZJ6cPnTvNiF8NR8TQpUU3HRXceo" class="w-20 h-20 mb-4 object-contain animate-bounce">
+        <div class="loader mb-3"></div>
+        <p class="text-gray-400 text-xs animate-pulse">Iniciando...</p>
+      </div>
+
+      <header class="h-14 bg-[#008395] flex items-center justify-between px-4 md:hidden shadow-md z-10 shrink-0">
+        <div class="flex items-center gap-3">
+           <button onclick="toggleMenu()" class="text-white hover:bg-white/20 p-1 rounded transition"><i data-lucide="menu" class="w-6 h-6"></i></button>
+           <img src="https://lh3.googleusercontent.com/d/1edUD4WtAlaWDXKGnE4DtE8JO7zp56oFK" alt="Atentamente" class="h-6 object-contain">
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-y-auto p-4 md:p-6" id="main-scroll">
+        
+        <div id="view-dashboard" class="view-div">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-5 gap-3">
+            <h2 class="text-xl font-bold text-gray-700">Panel de Control</h2>
+            <button onclick="runSync()" id="admin-sync-btn" class="hidden w-full md:w-auto bg-[#008395] text-white px-4 py-2 rounded-lg text-xs font-bold shadow hover:bg-[#006064] flex items-center justify-center gap-2 transition-transform active:scale-95"><i data-lucide="refresh-cw" class="w-3 h-3"></i> Sincronizar Drive</button>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div class="flex justify-between items-start">
+                  <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Pacientes</p>
+                    <h3 id="kpi-pacientes" class="text-3xl font-bold text-[#008395] mt-1">-</h3>
+                  </div>
+                  <div class="p-2 bg-teal-50 rounded-lg text-teal-600"><i data-lucide="users" class="w-5 h-5"></i></div>
+              </div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+               <div class="flex justify-between items-start">
+                  <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Aprobación</p>
+                    <h3 id="kpi-aprobacion" class="text-3xl font-bold text-green-600 mt-1">-</h3>
+                    <p class="text-[9px] text-gray-400 mt-1">Pacientes habilitados</p>
+                  </div>
+                  <div class="p-2 bg-green-50 rounded-lg text-green-600"><i data-lucide="check-circle" class="w-5 h-5"></i></div>
+               </div>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+               <div class="flex justify-between items-start">
+                  <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Vencimientos</p>
+                    <h3 id="kpi-vencimientos" class="text-3xl font-bold text-orange-500 mt-1">-</h3>
+                    <p class="text-[9px] text-gray-400 mt-1">Próximos 60 días</p>
+                  </div>
+                  <div class="p-2 bg-orange-50 rounded-lg text-orange-600"><i data-lucide="alert-triangle" class="w-5 h-5"></i></div>
+               </div>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            
+             <div class="lg:col-span-2 order-1">
+                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                        <h3 class="font-bold text-gray-700 text-xs uppercase flex items-center gap-2">
+                            <i data-lucide="bell" class="w-4 h-4"></i> Notificaciones
+                            <button onclick="refreshNotifsManual()" class="ml-1 p-1 text-gray-400 hover:text-[#008395] transition-colors" title="Actualizar"><i data-lucide="refresh-cw" class="w-3 h-3"></i></button>
+                        </h3>
+                        <button id="btn-add-notif" onclick="toggleNotifForm()" class="hidden text-[10px] bg-[#008395] text-white px-2 py-1 rounded hover:bg-[#006064] flex items-center gap-1 transition-colors"><i data-lucide="plus" class="w-3 h-3"></i> Nueva</button>
+                    </div>
+                    
+                    <div id="notif-form" class="hidden p-3 bg-gray-50 border-b border-gray-200">
+                        <input type="hidden" id="notif-id">
+                        <input type="text" id="notif-titulo" placeholder="Título" class="w-full mb-2 p-2 text-xs border rounded focus:outline-none focus:border-[#008395]">
+                        <textarea id="notif-mensaje" rows="2" placeholder="Mensaje" class="w-full mb-2 p-2 text-xs border rounded focus:outline-none focus:border-[#008395]"></textarea>
+                        <div class="flex justify-end gap-2">
+                            <button onclick="toggleNotifForm()" class="text-[10px] text-gray-500 px-2 py-1 hover:bg-gray-200 rounded">Cancelar</button>
+                            <button id="btn-save-notif" onclick="guardarOEditarNotificacion()" class="text-[10px] bg-[#008395] text-white px-3 py-1 rounded shadow hover:bg-[#006064]">Publicar</button>
+                        </div>
+                    </div>
+
+                    <div id="list-notificaciones" class="flex-1 overflow-y-auto p-3 space-y-2 max-h-[300px]">
+                        <p class="text-center text-xs text-gray-400 py-4">Sin notificaciones.</p>
+                    </div>
+                 </div>
+             </div>
+
+             <div class="lg:col-span-1 lg:row-span-2 order-2">
+                 <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm h-full max-h-[600px] flex flex-col">
+                    <div class="bg-gray-50 px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                        <i data-lucide="alert-circle" class="w-4 h-4 text-orange-500"></i>
+                        <span class="font-bold text-xs text-gray-700">Detalle de Vencimientos</span>
+                    </div>
+                    <div id="list-vto" class="divide-y divide-gray-100 overflow-y-auto flex-1 p-0">
+                        </div>
+                 </div>
+             </div>
+
+             <div class="lg:col-span-2 order-3">
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                        <div class="p-5 border-b border-gray-50 bg-gradient-to-r from-teal-50 to-white">
+                           <div class="flex items-center gap-2 mb-1">
+                             <div class="p-1.5 bg-teal-100 rounded-full text-teal-700"><i data-lucide="dollar-sign" class="w-4 h-4"></i></div>
+                             <h3 class="text-xs font-bold text-gray-600 uppercase">Ingresos Estimados (Mes)</h3>
+                           </div>
+                           <p id="kpi-ingresos-est" class="text-2xl font-bold text-gray-800 mt-2">-</p>
+                        </div>
+                        <div class="p-0 overflow-y-auto max-h-40 bg-white">
+                            <div class="flex justify-between items-center px-5 py-2 bg-gray-50 border-b border-gray-100 text-[9px] font-bold text-gray-400 uppercase">
+                                <span class="w-1/3">Razón Social</span>
+                                <span class="w-1/4 text-center"><i data-lucide="clock" class="w-3 h-3 inline"></i> Demora</span>
+                                <span class="w-1/3 text-right">Importe</span>
+                            </div>
+                            <div id="breakdown-os" class="divide-y divide-gray-50 text-[10px]"></div>
+                        </div>
+                     </div>
+                     
+                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between">
+                         <div class="flex items-center gap-2 mb-2">
+                           <div class="p-1.5 bg-blue-50 rounded-full text-blue-600"><i data-lucide="trending-up" class="w-4 h-4"></i></div>
+                           <h3 class="text-xs font-bold text-gray-600 uppercase">Evolución de Facturación</h3>
+                         </div>
+                         <div id="chart-comparison" class="flex items-end justify-between h-24 gap-3 mt-2 px-2 pb-2"></div>
+                     </div>
+                 </div>
+             </div>
+
+          </div>
+        </div>
+
+        <div id="view-misfacturas" class="view-div hidden">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-5 gap-4">
+            <div><h2 class="text-xl font-bold text-gray-700">Historial de Cobros</h2></div>
+            <div class="flex gap-2 w-full md:w-auto">
+               <button id="btn-toggle-pending" onclick="togglePendingFilter()" class="flex-1 md:flex-none border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"><i data-lucide="clock" class="w-3 h-3"></i> <span>Ver Pendientes</span></button>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+             <div class="overflow-x-auto">
+               <table class="w-full text-left text-xs text-gray-600">
+                 <thead class="bg-gray-50 text-[10px] uppercase font-bold text-gray-500">
+                   <tr>
+                     <th class="px-5 py-3 align-top min-w-[100px]">Fecha <input type="text" data-col="0" class="filter-input" placeholder="Filtrar..." onkeyup="filterFacturas()"></th>
+                     <th class="px-5 py-3 align-top min-w-[100px]">N° Factura <input type="text" data-col="1" class="filter-input" placeholder="Filtrar..." onkeyup="filterFacturas()"></th>
+                     <th class="px-5 py-3 align-top min-w-[150px]">Paciente <input type="text" data-col="2" class="filter-input" placeholder="Filtrar..." onkeyup="filterFacturas()"></th>
+                     <th class="px-5 py-3 align-top min-w-[150px]">Obra Social <input type="text" data-col="3" class="filter-input" placeholder="Filtrar..." onkeyup="filterFacturas()"></th>
+                     <th class="px-5 py-3 align-top min-w-[100px]">Mes <input type="text" data-col="4" class="filter-input" placeholder="Filtrar..." onkeyup="filterFacturas()"></th>
+                     <th class="px-5 py-3 text-right align-top">Importe</th>
+                     <th class="px-5 py-3 text-center align-top min-w-[120px]">Cobrado</th>
+                   </tr>
+                 </thead>
+                 <tbody id="table-facturas" class="divide-y divide-gray-100"></tbody>
+               </table>
+             </div>
+          </div>
+        </div>
+
+        <div id="view-pacientes" class="view-div hidden">
+          <h2 class="text-xl font-bold text-gray-700 mb-5">Mis Pacientes</h2>
+          <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+             <div class="p-3 border-b border-gray-100 bg-gray-50/50">
+               <div class="relative"><i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i><input type="text" id="search-input" onkeyup="filterTable()" placeholder="Buscar paciente..." class="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#008395] focus:ring-1 focus:ring-[#008395] transition-all"></div>
+             </div>
+             <div class="overflow-x-auto">
+               <table class="w-full text-left text-xs text-gray-600">
+                 <thead class="bg-gray-50 text-[10px] uppercase font-bold text-gray-500">
+                   <tr>
+                     <th class="px-5 py-3">Paciente</th>
+                     <th class="px-5 py-3 text-center">Estado</th>
+                     <th class="px-5 py-3 hidden md:table-cell">Prestador</th>
+                     <th class="px-5 py-3 text-center">Historia Clínica</th>
+                     <th class="px-5 py-3 text-right">Archivos</th>
+                   </tr>
+                 </thead>
+                 <tbody id="table-pacientes" class="divide-y divide-gray-100"></tbody>
+               </table>
+             </div>
+          </div>
+        </div>
+
+        <div id="view-browser" class="view-div hidden">
+          <div class="flex justify-between items-center mb-5">
+             <div class="flex items-center gap-3">
+               <button onclick="goBackBrowser()" id="btn-back-browser" class="bg-white border border-gray-200 p-1.5 rounded-lg text-gray-500 hover:text-[#008395] hover:border-[#008395] transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+               <h2 id="browser-title" class="text-xl font-bold text-gray-700">Archivos</h2>
+             </div>
+             <button onclick="toggleFileView()" class="bg-white border border-gray-200 p-1.5 rounded-lg text-gray-500 hover:text-[#008395] transition-colors flex items-center gap-2"><span class="text-[10px] font-bold uppercase hidden md:inline">Vista</span><i id="icon-view-mode" data-lucide="layout-grid" class="w-4 h-4"></i></button>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-5 min-h-[400px] shadow-sm">
+             <div id="browser-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+             <div id="browser-msg" class="text-center text-gray-400 py-16 flex flex-col items-center"><div class="loader mb-3"></div><p class="text-xs">Cargando...</p></div>
+          </div>
+        </div>
+
+        <div id="view-hc" class="view-div hidden"> 
+            <div class="flex justify-between items-center mb-5">
+                 <div class="flex items-center gap-3">
+                     <button onclick="nav('pacientes')" class="bg-white border border-gray-200 p-1.5 rounded-lg text-gray-500 hover:text-[#008395] hover:border-[#008395] transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+                     <div>
+                         <h2 class="text-xl font-bold text-gray-700">Historia Clínica</h2>
+                         <p class="text-[10px] text-[#008395] font-bold uppercase tracking-wide" id="hc-patient-name">-</p>
+                         
+                         <input type="hidden" id="hc-data-dni">
+                         <input type="hidden" id="hc-data-afiliado">
+                         <input type="hidden" id="hc-data-dx">
+                         <input type="hidden" id="hc-data-phone">
+                         <input type="hidden" id="hc-data-prestador">
+                         <input type="hidden" id="hc-data-titulo">
+                         <input type="hidden" id="hc-data-email">
+                         <input type="hidden" id="hc-edit-id"> 
+                         <input type="hidden" id="hc-last-evo-text">
+                         <input type="hidden" id="hc-last-evo-date">
+                     </div>
+                 </div>
+                 
+                 <div class="flex gap-2">
+                    <button onclick="printHC()" class="bg-white text-gray-600 border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-50 flex items-center gap-2 transition-colors" title="Imprimir">
+                        <i data-lucide="printer" class="w-4 h-4"></i> <span class="hidden md:inline">Imprimir</span>
+                    </button>
+                 </div>
+            </div> 
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="bg-white border-2 border-[#008395] rounded-xl shadow-lg overflow-hidden h-fit">
+                  <div class="bg-gradient-to-r from-[#008395] to-[#006064] px-5 py-3 border-b border-gray-200 font-bold text-white flex items-center gap-2"><i data-lucide="pen-tool" class="w-4 h-4 text-white"></i><span class="uppercase text-xs tracking-wide">Nueva Evolución</span></div>
+                  <div class="p-5">
+                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Evolución / Notas</label>
+                      <textarea id="hc-text" rows="8" class="w-full p-3 border border-gray-200 rounded-lg text-xs focus:border-[#008395] focus:ring-1 focus:ring-[#008395] outline-none resize-none mb-3 bg-gray-50" placeholder="Escriba aquí la evolución..."></textarea>
+                      <div class="flex gap-2">
+                         <button onclick="toggleDictation()" id="btn-mic" class="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-50 flex justify-center items-center gap-2 transition-colors"><i data-lucide="mic" class="w-3 h-3"></i> Dictar</button>
+                         <button onclick="saveHC()" id="btn-save-hc" class="flex-[2] py-2 bg-[#008395] text-white rounded-lg text-xs font-bold hover:bg-[#006064] flex justify-center items-center gap-2 shadow-md transition-transform active:scale-95"><i data-lucide="save" class="w-3 h-3"></i> Guardar</button>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="lg:col-span-2">
+                  <div class="bg-white border-2 border-[#008395] rounded-xl shadow-lg overflow-hidden h-full flex flex-col" style="min-height: 400px;">
+                      <div class="bg-gradient-to-r from-[#008395] to-[#006064] px-5 py-3 border-b border-gray-100 font-bold text-white flex justify-between items-center"><span class="uppercase text-xs tracking-wide flex items-center gap-2"><i data-lucide="history" class="w-4 h-4"></i> Historial</span><span class="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-mono" id="hc-count">0</span></div>
+                      <div class="p-5 flex-1 overflow-y-auto max-h-[500px] relative">
+                          <div class="timeline-line absolute left-7 top-5 bottom-5 w-0.5 bg-gray-200"></div>
+                          <div id="hc-timeline" class="space-y-6 ml-3 pl-4 relative"></div>
+                      </div>
+                  </div>
+              </div>
+            </div>
+        </div> 
+
+      </div> 
+      
+       <div id="footer-powered" class="mt-4 flex flex-row items-center justify-center py-2 w-full border-t border-gray-200/50 opacity-60 hover:opacity-100 transition-opacity">
+            <span class="text-[8px] text-gray-400 uppercase font-bold tracking-wider mr-2">POWERED BY</span>
+            <a href="https://www.haceclick-ai.com/" target="_blank" class="flex items-center">
+                <img src="https://lh3.googleusercontent.com/d/1C7xmXsJvnfA_bX_HF6BvSojlDigIw8g5" alt="HaceClick.ai" class="h-8 md:h-10 object-contain grayscale hover:grayscale-0 transition-all">
+            </a>
+        </div>
+
+      
+
+    </main>
+
+<script>
+  
+  // Variables globales limpias
+  var USER_EMAIL_GLOBAL = ""; 
+  var CACHE_DATA = null;
+  var CURRENT_FILES = [];
+  var IS_LIST_VIEW = false; 
+  var REC = null;
+  var IS_REC = false;
+  var CURRENT_HC_HISTORIAL = [];
+  var NAV_HISTORY = [];
+  var EXIT_VIEW = 'dashboard';
+  var CURRENT_FOLDER_ID = null;
+  var SHOW_ONLY_PENDING = false;
+
+  // ==========================================
+  // ESCUDO DE SEGURIDAD: APAGAR CONSOLA
+  // ==========================================
+  // Esto evita que herramientas de depuración o compiladores en Android 
+  // impriman tokens o datos sensibles de pacientes en el log.
+  if (typeof console !== "undefined") {
+      console.log = function() {};
+      console.info = function() {};
+      console.warn = function() {};
+      console.table = function() {};
+      // Opcional: puedes dejar console.error activo para cazar fallos críticos, 
+      // o comentarlo también si quieres un bloqueo total.
+  }
+
+  // --- CONTROLADOR DEL MODAL DE CONFIRMACIÓN ---
+  var accionConfirmada = null;
+  
+  function abrirModalConfirm(mensaje, accion) {
+      document.getElementById('confirm-msg').innerText = mensaje;
+      accionConfirmada = accion;
+      document.getElementById('modal-confirm').classList.remove('hidden');
+  }
+  
+  function cerrarModalConfirm() {
+      document.getElementById('modal-confirm').classList.add('hidden');
+      accionConfirmada = null;
+  }
+  
+  function ejecutarAccionConfirmada() {
+      if (accionConfirmada) accionConfirmada();
+      cerrarModalConfirm();
+  }
+
+  // --- ARRANQUE DE LA APP ---
+  window.onload = function() {
+    if(typeof lucide !== 'undefined') lucide.createIcons();
+    
+    google.script.url.getLocation(function(location) {
+        let token = location.parameter.uid || "";
+        USER_EMAIL_GLOBAL = token.trim();
+        
+        console.log("🔑 Token enviado al servidor:", USER_EMAIL_GLOBAL ? USER_EMAIL_GLOBAL : "Ninguno (se usará sesión de Google)");
+
+        // Ya NO bloqueamos acá. Enviamos la orden al servidor directamente.
+        // Si hay token, el servidor validará el token. Si no hay, validará el Gmail del navegador.
+        google.script.run
+          .withSuccessHandler(initApp)
+          .withFailureHandler(showError)
+          .getAppData(USER_EMAIL_GLOBAL); 
+    });
+  };
+
+  function initApp(data) {
+    CACHE_DATA = data;
+    document.getElementById('loader').classList.add('hidden');
+    
+    const userEl = document.getElementById('user-email'); 
+    if(userEl) userEl.innerText = data.userDisplayName || data.user;
+    
+    const roleEl = document.getElementById('user-role'); 
+    if(roleEl) roleEl.innerText = data.role;
+    
+    const titleEl = document.getElementById('user-title');
+    if(titleEl && data.currentUserInfo && data.currentUserInfo.titulo) {
+        titleEl.innerText = data.currentUserInfo.titulo;
+    }
+    
+    if(data.isAdmin) {
+      document.getElementById('admin-sync-btn').classList.remove('hidden');
+      document.getElementById('btn-add-notif').classList.remove('hidden');
+    }
+    
+    renderDashboard();
+    renderTable();
+    renderFacturasTable();
+
+    // Sincronización en segundo plano de las notificaciones
+    // Sincronización en segundo plano de las notificaciones (ACELERADA A 10 SEGS)
+  setInterval(function() {
+      if (!document.getElementById('view-dashboard').classList.contains('hidden')) {
+          refreshNotifsSilent();
+      }
+  }, 10000); // <-- Cambiado a 10 segundos
+
+  function guardarOEditarNotificacion() {
+      const id = document.getElementById('notif-id').value;
+      const titulo = document.getElementById('notif-titulo').value;
+      const mensaje = document.getElementById('notif-mensaje').value;
+      
+      if(!titulo || !mensaje) return showToast("Complete título y mensaje", "error");
+      
+      const btn = document.getElementById('btn-save-notif');
+      const prev = btn.innerText;
+      btn.innerText = '...';
+      btn.disabled = true;
+      
+      const autor = CACHE_DATA.currentUserInfo.nombre || "Admin";
+      
+      if(id) {
+          // 1. ACTUALIZACIÓN LOCAL INMEDIATA (Tiempo Real para ti)
+          const idx = CACHE_DATA.notificaciones.findIndex(function(x) { return String(x.id) === String(id); });
+          if(idx > -1) {
+              CACHE_DATA.notificaciones[idx].titulo = titulo;
+              CACHE_DATA.notificaciones[idx].mensaje = mensaje;
+              renderNotifications(); // Se dibuja al instante
+          }
+          toggleNotifForm();
+          btn.innerText = prev;
+          btn.disabled = false;
+          showToast("Notificación actualizada", "success");
+
+          // 2. Guardado en Google Sheets en segundo plano
+          google.script.run.withFailureHandler(function(err){
+             showToast("Error al guardar en el servidor", "error");
+             refreshNotifsSilent(); // Revertir si falla
+          }).updateNotificacion(id, titulo, mensaje);
+          
+      } else {
+          // CREAR NUEVA
+          google.script.run.withSuccessHandler(function(res) {
+              btn.innerText = prev;
+              btn.disabled = false;
+              toggleNotifForm();
+              showToast("Notificación publicada", "success");
+              refreshNotifsSilent(); // Trae el ID nuevo generado en el servidor
+          }).guardarNotificacion(titulo, mensaje, autor);
+      }
+  }
+
+  function borrarNotificacion(id) {
+      abrirModalConfirm("¿Está seguro que desea eliminar esta notificación?", function() {
+          // 1. ACTUALIZACIÓN LOCAL INMEDIATA (Desaparece al instante)
+          CACHE_DATA.notificaciones = CACHE_DATA.notificaciones.filter(function(x) { return String(x.id) !== String(id); });
+          renderNotifications();
+          showToast("Notificación eliminada", "success");
+
+          // 2. Borrado en Google Sheets en segundo plano
+          google.script.run.withFailureHandler(function(err){
+             showToast("Error al eliminar en el servidor", "error");
+             refreshNotifsSilent(); // Revertir visualmente si hubo error de conexión
+          }).eliminarNotificacion(id);
+      });
+  }
+  }
+
+  function showError(e) { 
+     document.getElementById('loader').classList.add('hidden');
+     showToast("Error: " + e.message, 'error'); 
+  }
+  
+  function showToast(msg, type) {
+     const container = document.getElementById('toast-container');
+     const toast = document.createElement('div');
+     toast.className = 'toast ' + (type === 'error' ? 'error' : 'success');
+     toast.innerHTML = (type === 'error' ? '<i data-lucide="alert-circle" class="w-4 h-4"></i> ' : '<i data-lucide="check-circle" class="w-4 h-4"></i> ') + msg;
+     container.appendChild(toast);
+     lucide.createIcons();
+     setTimeout(function() { toast.remove(); }, 4000);
+  }
+
+  function parseDateStr(str) {
+    if(!str) return null;
+    if(str.includes('/')) {
+        const p = str.split('/');
+        if(p.length === 3) return new Date(p[2], p[1]-1, p[0]);
+    } else if (str.includes('-')) {
+        const p = str.split('-');
+        if(p.length === 3) return new Date(p[0], p[1]-1, p[2]);
+    }
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  
+  function formatMoney(amount) {
+     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
+  }
+
+  function renderDashboard() {
+    if(!CACHE_DATA) return;
+    
+    const pts = CACHE_DATA.pacientes;
+    setText('kpi-pacientes', pts.length);
+    const pend = pts.filter(function(p) { return String(p.aprobado).includes('-2'); }).length;
+    const percent = pts.length > 0 ? Math.round((pend/pts.length)*100) : 0;
+    setText('kpi-aprobacion', percent + '%');
+    
+    const hoy = new Date(); 
+    const max = new Date(); max.setMonth(max.getMonth() + 2); 
+    const vtos = [];
+    pts.forEach(function(p) { 
+      checkDate(p, p.vtoRNP, 'RNP', hoy, max, vtos); 
+      checkDate(p, p.vtoSeguro, 'Seguro', hoy, max, vtos); 
+    });
+    setText('kpi-vencimientos', vtos.length);
+    
+    const stats = CACHE_DATA.financialStats || { estimatedIncome: 0, monthlyBilling: [0,0,0], breakdown: {}, avgDelays: {} };
+    setText('kpi-ingresos-est', formatMoney(stats.estimatedIncome));
+    
+    const breakdownContainer = document.getElementById('breakdown-os');
+    let breakdownHtml = '';
+    const sortedOS = Object.keys(stats.breakdown || {}).sort((a,b) => stats.breakdown[b] - stats.breakdown[a]);
+    
+    if (sortedOS.length === 0) {
+        breakdownHtml = '<div class="p-3 text-center text-gray-400 italic">Sin ingresos estimados</div>';
+    } else {
+        sortedOS.forEach(function(os) {
+            const delay = (stats.avgDelays && stats.avgDelays[os]) ? stats.avgDelays[os] + 'd' : '-';
+            breakdownHtml += '<div class="flex justify-between items-center px-5 py-2 hover:bg-gray-50">' +
+                '<span class="font-medium text-gray-600 truncate mr-2 w-1/3">' + os + '</span>' +
+                '<span class="text-xs text-gray-400 font-mono text-center w-1/4" title="Demora promedio">' + delay + '</span>' +
+                '<span class="font-bold text-teal-600 text-right w-1/3">' + formatMoney(stats.breakdown[os]) + '</span>' +
+            '</div>';
+        });
+    }
+    breakdownContainer.innerHTML = breakdownHtml;
+
+    const chart = document.getElementById('chart-comparison');
+    const monthlyBilling = stats.monthlyBilling || [0,0,0];
+    const maxVal = Math.max(...monthlyBilling, 1);
+    const labels = ['Actual', 'Mes Ant.', 'Hace 2 M'];
+    const colors = ['bg-[#008395]', 'bg-[#2dd4bf]', 'bg-[#99f6e4]'];
+    
+    let chartHtml = '';
+    for(let i = 2; i >= 0; i--) {
+        const val = monthlyBilling[i];
+        const hPct = Math.max((val / maxVal) * 100, 10);
+        const color = colors[i];
+        
+        chartHtml += '<div class="flex flex-col items-center flex-1 h-full justify-end group">' +
+            '<div class="w-full max-w-[40px] rounded-t-md ' + color + ' bar-graph-col relative" style="height:' + hPct + '%">' +
+               '<div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 font-mono">' + formatMoney(val) + '</div>' +
+            '</div>' +
+            '<span class="text-[9px] text-gray-400 mt-2 font-medium uppercase tracking-wider">' + labels[i] + '</span>' +
+        '</div>';
+    }
+    chart.innerHTML = chartHtml;
+
+    renderNotifications();
+    if(typeof lucide !== 'undefined') lucide.createIcons();
+  }
+  
+  // --- NOTIFICACIONES ACTUALIZADAS ---
+  function renderNotifications() {
+      const list = document.getElementById('list-notificaciones');
+      const notifs = CACHE_DATA.notificaciones || [];
+      
+      if(notifs.length === 0) {
+          list.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">Sin notificaciones.</p>';
+          return;
+      }
+      
+      let html = '';
+      notifs.forEach(function(n, index) {
+          let actionBtns = '';
+          if(CACHE_DATA.isAdmin) {
+              actionBtns = '<div class="flex justify-end gap-3 mt-2 pt-2 border-t border-gray-200">' +
+                           '<button onclick="editarNotificacion(' + index + ')" class="text-[10px] text-blue-500 hover:text-blue-700 flex items-center gap-1 font-medium"><i data-lucide="pencil" class="w-3 h-3"></i> Editar</button>' +
+                           '<button onclick="borrarNotificacion(\'' + n.id + '\')" class="text-[10px] text-red-500 hover:text-red-700 flex items-center gap-1 font-medium"><i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar</button>' +
+                           '</div>';
+          }
+
+          html += '<div class="p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">' +
+              '<div class="flex justify-between items-start mb-1">' +
+                  '<h4 class="text-xs font-bold text-gray-700">' + n.titulo + '</h4>' +
+                  '<span class="text-[9px] text-gray-400">' + n.fecha + '</span>' +
+              '</div>' +
+              '<p class="text-[10px] text-gray-600 leading-relaxed whitespace-pre-wrap">' + n.mensaje + '</p>' +
+              '<span class="text-[9px] text-[#008395] font-bold mt-1 block">Por: ' + n.autor + '</span>' +
+              actionBtns +
+          '</div>';
+      });
+      list.innerHTML = html;
+      if(window.lucide) lucide.createIcons();
+  }
+
+  // --- SINCRONIZACION NOTIFICACIONES ---
+  function refreshNotifsSilent() {
+      google.script.run.withSuccessHandler(function(notifs) {
+          if(JSON.stringify(CACHE_DATA.notificaciones) !== JSON.stringify(notifs)) {
+              CACHE_DATA.notificaciones = notifs;
+              renderNotifications();
+          }
+      }).getOnlyNotifications();
+  }
+
+  function refreshNotifsManual() {
+      const list = document.getElementById('list-notificaciones');
+      list.style.opacity = '0.5';
+      google.script.run.withSuccessHandler(function(notifs) {
+          CACHE_DATA.notificaciones = notifs;
+          renderNotifications();
+          list.style.opacity = '1';
+          showToast("Notificaciones actualizadas", "success");
+      }).getOnlyNotifications();
+  }
+  
+  function toggleNotifForm(isEdit) {
+      const form = document.getElementById('notif-form');
+      if(isEdit !== true) {
+          document.getElementById('notif-id').value = '';
+          document.getElementById('notif-titulo').value = '';
+          document.getElementById('notif-mensaje').value = '';
+          document.getElementById('btn-save-notif').innerText = 'Publicar';
+      }
+      form.classList.toggle('hidden');
+  }
+
+  function editarNotificacion(index) {
+      const n = CACHE_DATA.notificaciones[index];
+      document.getElementById('notif-id').value = n.id;
+      document.getElementById('notif-titulo').value = n.titulo;
+      document.getElementById('notif-mensaje').value = n.mensaje;
+      document.getElementById('btn-save-notif').innerText = 'Actualizar';
+      document.getElementById('notif-form').classList.remove('hidden');
+  }
+  
+  function guardarOEditarNotificacion() {
+      const id = document.getElementById('notif-id').value;
+      const titulo = document.getElementById('notif-titulo').value;
+      const mensaje = document.getElementById('notif-mensaje').value;
+      
+      if(!titulo || !mensaje) return showToast("Complete título y mensaje", "error");
+      
+      const btn = document.getElementById('btn-save-notif');
+      const prev = btn.innerText;
+      btn.innerText = '...';
+      btn.disabled = true;
+      
+      const autor = CACHE_DATA.currentUserInfo.nombre || "Admin";
+      
+      if(id) {
+          google.script.run.withSuccessHandler(function(res) {
+              btn.innerText = prev;
+              btn.disabled = false;
+              if(res.success) {
+                  toggleNotifForm();
+                  showToast("Notificación actualizada", "success");
+                  refreshNotifsSilent(); // Actualizar forzosamente
+              } else { showToast(res.error, "error"); }
+          }).updateNotificacion(id, titulo, mensaje);
+      } else {
+          google.script.run.withSuccessHandler(function(res) {
+              btn.innerText = prev;
+              btn.disabled = false;
+              toggleNotifForm();
+              showToast("Notificación publicada", "success");
+              refreshNotifsSilent(); // Actualizar forzosamente
+          }).guardarNotificacion(titulo, mensaje, autor);
+      }
+  }
+
+  function borrarNotificacion(id) {
+      abrirModalConfirm("¿Está seguro que desea eliminar esta notificación?", function() {
+          const list = document.getElementById('list-notificaciones');
+          list.style.opacity = '0.5';
+          google.script.run.withSuccessHandler(function(res) {
+              list.style.opacity = '1';
+              if(res.success) {
+                  showToast("Notificación eliminada", "success");
+                  refreshNotifsSilent(); 
+              } else { showToast(res.error, "error"); }
+          }).eliminarNotificacion(id);
+      });
+  }
+
+  function setText(id, val) { const el = document.getElementById(id); if(el) el.innerText = val; }
+  
+  function checkDate(p, str, tipo, hoy, max, arr) {
+    if(!str || typeof str !== 'string') return;
+    const parts = str.trim().split('/');
+    if(parts.length !== 3) return;
+    const d = new Date(parts[2], parts[1]-1, parts[0]);
+    if(d >= hoy && d <= max) {
+        const nombreMostrar = p.prestador || "Prestador Desconocido";
+        const existe = arr.some(function(item) { return item.nombre === nombreMostrar && item.tipo === tipo && item.fecha === str; });
+        if (!existe) arr.push({ nombre: nombreMostrar, tipo: tipo, fecha: str });
+    }
+  }
+
+  function renderFacturasTable() {
+     const tbody = document.getElementById('table-facturas');
+     if(!tbody) return;
+     tbody.innerHTML = '';
+     const facturas = CACHE_DATA.facturas || [];
+     if(facturas.length === 0) {
+         tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400 text-xs">No hay facturas recientes.</td></tr>';
+         return;
+     }
+     
+     facturas.forEach(function(inv) {
+         const cobrado = inv.fechaCobro ? '<span class="text-green-600 font-bold">' + inv.fechaCobro + '</span>' : '<span class="text-gray-400 italic">Pendiente</span>';
+         let impFormatted = formatMoney(inv.facturacion);
+         const pendingClass = (!inv.fechaCobro) ? 'is-pending' : 'is-paid';
+
+         tbody.innerHTML += '<tr class="hover:bg-slate-50 border-b border-gray-100 transition-colors factura-row ' + pendingClass + '">' +
+             '<td class="px-5 py-3 text-gray-600 font-medium">' + inv.fechaFactura + '</td>' +
+             '<td class="px-5 py-3 text-gray-900 font-bold">#' + inv.nFactura + '</td>' +
+             '<td class="px-5 py-3 text-gray-600">' + inv.paciente + '</td>' +
+             '<td class="px-5 py-3"><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-100">' + inv.razonSocial + '</span></td>' +
+             '<td class="px-5 py-3 text-gray-600">' + inv.mes + '</td>' +
+             '<td class="px-5 py-3 text-right font-mono font-bold text-gray-700">' + impFormatted + '</td>' +
+             '<td class="px-5 py-3 text-center text-[10px]">' + cobrado + '</td>' +
+         '</tr>';
+     });
+     filterFacturas();
+  }
+
+  function filterFacturas() {
+    const filters = {};
+    document.querySelectorAll('.filter-input').forEach(function(input) {
+        const colIndex = input.getAttribute('data-col');
+        const val = input.value.toLowerCase();
+        if(val) filters[colIndex] = val;
+    });
+
+    const rows = document.querySelectorAll('.factura-row');
+    rows.forEach(function(row) {
+        let visible = true;
+        const cells = row.getElementsByTagName('td');
+        if (SHOW_ONLY_PENDING && !row.classList.contains('is-pending')) { visible = false; }
+        if (visible) {
+            for (let colIdx in filters) {
+                const cellText = cells[colIdx].textContent.toLowerCase();
+                if (!cellText.includes(filters[colIdx])) { visible = false; break; }
+            }
+        }
+        row.style.display = visible ? '' : 'none';
+    });
+  }
+
+  function togglePendingFilter() {
+      SHOW_ONLY_PENDING = !SHOW_ONLY_PENDING;
+      const btn = document.getElementById('btn-toggle-pending');
+      if(SHOW_ONLY_PENDING) {
+          btn.classList.add('bg-orange-50', 'text-orange-600', 'border-orange-200');
+          btn.classList.remove('bg-white', 'text-gray-600', 'border-gray-300');
+          btn.innerHTML = '<i data-lucide="filter" class="w-3 h-3"></i> <span>Viendo Solo Pendientes</span>';
+      } else {
+          btn.classList.remove('bg-orange-50', 'text-orange-600', 'border-orange-200');
+          btn.classList.add('bg-white', 'text-gray-600', 'border-gray-300');
+          btn.innerHTML = '<i data-lucide="clock" class="w-3 h-3"></i> <span>Ver Pendientes</span>';
+      }
+      lucide.createIcons();
+      filterFacturas();
+  }
+
+  function renderTable() {
+      const tbody = document.getElementById('table-pacientes'); 
+      tbody.innerHTML = '';
+      CACHE_DATA.pacientes.forEach(function(p, index) {
+        let btnFiles = '<span class="text-gray-300 text-[10px] italic flex justify-end gap-1"><i data-lucide="folder-lock" class="w-3 h-3"></i> Sin acceso</span>';
+        if(p.idDrive && p.idDrive.length > 5) {
+          btnFiles = '<button onclick="openPatientFolderFromIndex(' + index + ')" class="inline-flex items-center gap-1 bg-white border border-gray-200 text-gray-600 px-2.5 py-1 rounded-md text-[10px] font-bold hover:bg-gray-50 transition-all shadow-sm"><i data-lucide="folder-open" class="w-3 h-3"></i> Archivos</button>';
+        }
+        let btnHC = '<button onclick="openHCFromIndex(' + index + ')" class="inline-flex items-center gap-1.5 bg-[#008395] text-white px-2.5 py-1 rounded-md text-[10px] font-bold hover:bg-[#006064] transition-all shadow-sm"><i data-lucide="clipboard-list" class="w-3 h-3"></i> Ver HC</button>';
+        let estadoVal = String(p.aprobado).trim();
+        let estadoClass = 'bg-gray-100 text-gray-600 border-gray-200';
+        if(estadoVal.includes('-2')) { estadoClass = 'bg-green-100 text-green-700 border-green-300'; }
+        let estadoHtml = '<span class="' + estadoClass + ' px-2 py-0.5 rounded text-[10px] font-bold border">' + estadoVal + '</span>';
+        tbody.innerHTML += '<tr class="hover:bg-slate-50 border-b border-gray-100 search-row group transition-colors">' +
+          '<td class="px-5 py-3 font-bold text-gray-700 text-xs">' + p.paciente + '</td>' +
+          '<td class="px-5 py-3 text-center">' + estadoHtml + '</td>' +
+          '<td class="px-5 py-3 text-[10px] font-mono text-gray-500 hidden md:table-cell">' + p.prestador + '</td>' +
+          '<td class="px-5 py-3 text-center">' + btnHC + '</td>' +
+          '<td class="px-5 py-3 text-right">' + btnFiles + '</td>' +
+        '</tr>';
+      });
+      if(typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  function filterTable() {
+    const term = document.getElementById('search-input').value.toLowerCase();
+    document.querySelectorAll('.search-row').forEach(function(r) { 
+      r.style.display = r.innerText.toLowerCase().includes(term) ? '' : 'none'; 
+    });
+  }
+
+  function nav(view) {
+    const sidebar = document.getElementById('sidebar');
+    if(sidebar && !sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) { toggleMenu(); }
+    document.querySelectorAll('.nav-item').forEach(function(b) { b.classList.remove('active'); });
+    const btn = document.getElementById('btn-'+view); 
+    if(btn) btn.classList.add('active');
+    document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
+    
+    if(view === 'pacientes' || view === 'dashboard' || view === 'misfacturas') {
+      document.getElementById('view-'+view).classList.remove('hidden');
+    } else {
+      const browser = document.getElementById('view-browser'); 
+      browser.classList.remove('hidden');
+      
+      if(view === 'facturacion') loadSubfolder('Facturacion_Mensual/2026');
+      else if(view === 'derivacion') loadSubfolder('Derivacion_Mensual/2026');
+      else loadBrowser(view);
+    }
+
+    
+    // REFRESCO AUTOMÁTICO DE NOTIFICACIONES AL VOLVER AL DASHBOARD
+    if(view === 'dashboard') {
+        refreshNotifsSilent();
+    }
+
+    if(typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  function toggleMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('mobile-overlay');
+    if (sidebar.classList.contains('-translate-x-full')) { sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); } 
+    else { sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden'); }
+  }
+
+  function openPatientFolderFromIndex(index) { const p = CACHE_DATA.pacientes[index]; if(p) openPatientFolder(p.idDrive, p.paciente); }
+  function openHCFromIndex(index) { const p = CACHE_DATA.pacientes[index]; if(p) openHC(p.paciente, p.dni, p.afiliado, p.dx, p.telefono, p.prestador, p.prestadorTitulo); }
+  function navigateFolderFromIndex(index) { const f = CURRENT_FILES[index]; if(f && f.mime.includes('folder')) { if(CURRENT_FOLDER_ID) { NAV_HISTORY.push(CURRENT_FOLDER_ID); } CURRENT_FOLDER_ID = f.id; fetchFiles(f.id); } }
+  
+  function startEditFromIndex(index) {
+      const item = CURRENT_HC_HISTORIAL[index];
+      if(!item) return;
+      document.getElementById('hc-text').value = item.texto;
+      document.getElementById('hc-edit-id').value = item.id;
+      const btn = document.getElementById('btn-save-hc');
+      btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3 h-3"></i> Actualizar';
+      btn.classList.remove('bg-[#008395]');
+      btn.classList.add('bg-orange-500');
+      document.querySelector('#view-hc').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function openHC(pacienteName, dni, afiliado, dx, telefono, prestador, titulo) {
+     document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
+     document.getElementById('view-hc').classList.remove('hidden');
+     document.getElementById('hc-patient-name').innerText = pacienteName;
+     document.getElementById('hc-data-dni').value = dni;
+     document.getElementById('hc-data-afiliado').value = afiliado;
+     document.getElementById('hc-data-dx').value = dx;
+     document.getElementById('hc-data-phone').value = telefono;
+     document.getElementById('hc-data-prestador').value = prestador;
+     document.getElementById('hc-data-titulo').value = titulo;
+     document.getElementById('hc-text').value = '';
+     const editInput = document.getElementById('hc-edit-id');
+     if(editInput) editInput.value = '';
+     const btn = document.getElementById('btn-save-hc');
+     btn.innerHTML = '<i data-lucide="save" class="w-3 h-3"></i> Guardar';
+     btn.classList.add('bg-[#008395]');
+     btn.classList.remove('bg-orange-500');
+     
+     loadTimeline(pacienteName);
+     lucide.createIcons();
+  }
+
+  function loadTimeline(name) {
+     const container = document.getElementById('hc-timeline');
+     if(!container) return;
+     container.innerHTML = '<div class="loader mb-2"></div><p class="text-xs text-gray-400">Cargando...</p>';
+     const pNombre = CACHE_DATA.currentUserInfo.nombre || "Profesional";
+     const pTitulo = CACHE_DATA.currentUserInfo.titulo;
+     const miFirma = pTitulo ? pNombre + " (" + pTitulo + ")" : pNombre;
+
+     google.script.run.withSuccessHandler(function(res) {
+         const divNombre = document.getElementById('hc-patient-name');
+         const nombreEnPantalla = divNombre ? divNombre.innerText.trim() : "";
+         const nombreQueLlego = name.trim();
+         if (nombreEnPantalla !== nombreQueLlego) { return; }
+         container.innerHTML = '';
+         CURRENT_HC_HISTORIAL = res; 
+         const contador = document.getElementById('hc-count');
+         if(contador) contador.innerText = res.length;
+         if(!res || res.length === 0) { container.innerHTML = '<p class="text-xs text-gray-400 italic">No hay registros aún.</p>'; return; }
+         res.forEach(function(item, index) {
+             const esMio = (item.profesional === miFirma);
+             let waBtn = ''; let actionBtns = '';
+             if (esMio) {
+                 const inputTel = document.getElementById('hc-data-phone');
+                 const tel = inputTel ? inputTel.value : "";
+                 if(tel && tel.length > 5) {
+                     let num = tel.replace(/\D/g,'');
+                     if(!num.startsWith('549')) num = '549' + num;
+                     const msg = encodeURIComponent('Hola!, te paso la devolución de la sesion de hoy de ' + item.paciente + ' (' + item.fecha + '):\n\n' + item.texto);
+                     waBtn = '<a href="https://wa.me/' + num + '?text=' + msg + '" target="_blank" class="text-green-500 hover:text-green-700 bg-green-50 p-1 rounded-full hover:bg-green-100 transition-colors" title="Enviar por WhatsApp"><i data-lucide="message-circle" class="w-3 h-3"></i></a>';
+                 }
+                 const editBtn = '<button onclick="startEditFromIndex(' + index + ')" class="text-blue-500 hover:text-blue-700 bg-blue-50 p-1 rounded-full hover:bg-blue-100 transition-colors ml-1" title="Editar"><i data-lucide="pencil" class="w-3 h-3"></i></button>';
+                 const delBtn = '<button onclick="deleteNote(\'' + item.id + '\', \'' + name + '\')" class="text-red-500 hover:text-red-700 bg-red-50 p-1 rounded-full hover:bg-red-100 transition-colors ml-1" title="Eliminar"><i data-lucide="trash-2" class="w-3 h-3"></i></button>';
+                 actionBtns = editBtn + delBtn;
+             }
+             container.innerHTML += '<div class="timeline-item relative pb-6 last:pb-0 pl-4 border-l-2 border-transparent hover:border-gray-200 transition-all">' +
+                 '<div class="flex justify-between items-center mb-1">' +
+                     '<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">' + item.fecha + '</span>' +
+                     '<div class="flex gap-2 items-center">' + waBtn + actionBtns + '</div>' +
+                 '</div>' +
+                 '<div class="bg-gray-50 p-3 rounded-lg border border-gray-100 text-xs text-gray-700 whitespace-pre-wrap leading-relaxed shadow-sm font-mono">' + item.texto + '</div>' +
+                 '<div class="text-right mt-1">' +
+                     '<span class="text-[9px] text-gray-400 font-medium bg-white px-2 py-0.5 rounded border border-gray-100 flex inline-flex items-center gap-1 shadow-sm"><i data-lucide="user" class="w-3 h-3"></i> ' + item.profesional + '</span>' +
+                 '</div>' +
+             '</div>';
+         });
+         if(window.lucide) lucide.createIcons();
+     }).getPatientHistory(name);
+  }
+
+  function saveHC() {
+     const text = document.getElementById('hc-text').value;
+     const name = document.getElementById('hc-patient-name').innerText;
+     const editInput = document.getElementById('hc-edit-id');
+     const editId = editInput ? editInput.value : '';
+     if(!text) return showToast("Escriba algo antes de guardar.", 'error');
+     const btn = document.getElementById('btn-save-hc');
+     btn.disabled = true;
+     btn.innerHTML = editId ? 'Actualizando...' : 'Guardando...';
+     const pNombre = CACHE_DATA.currentUserInfo.nombre || "Profesional";
+     const pTitulo = CACHE_DATA.currentUserInfo.titulo;
+     const profesionalStr = pTitulo ? pNombre + " (" + pTitulo + ")" : pNombre;
+     const payload = { id: editId, paciente: name, texto: text, profesional: profesionalStr };
+     const handler = function(res) {
+         btn.disabled = false;
+         btn.innerHTML = '<i data-lucide="save" class="w-3 h-3"></i> Guardar';
+         btn.classList.add('bg-[#008395]');
+         btn.classList.remove('bg-orange-500');
+         document.getElementById('hc-text').value = '';
+         if(editInput) editInput.value = '';
+         const pacienteActualEnPantalla = document.getElementById('hc-patient-name').innerText;
+         if (pacienteActualEnPantalla === name) { loadTimeline(name); }
+         showToast(editId ? "Nota actualizada." : "Evolución guardada.", 'success');
+         if (!editId) {
+             document.getElementById('hc-last-evo-text').value = text;
+             document.getElementById('hc-last-evo-date').value = res.fecha || new Date().toLocaleDateString();
+             const tel = document.getElementById('hc-data-phone').value;
+             if(tel && tel.length > 5 && pacienteActualEnPantalla === name) { document.getElementById('modal-whatsapp').classList.remove('hidden'); }
+         }
+     };
+     if (editId) { google.script.run.withSuccessHandler(handler).updatePatientHistory(payload); } 
+     else { google.script.run.withSuccessHandler(handler).savePatientHistory(payload); }
+  }
+
+  function deleteNote(id, patientName) {
+      abrirModalConfirm("¿Estás seguro de que deseas eliminar esta nota permanentemente?", function() {
+          const container = document.getElementById('hc-timeline');
+          container.style.opacity = '0.5';
+          google.script.run.withSuccessHandler(function(res) {
+              container.style.opacity = '1';
+              if (res.success) {
+                  showToast("Nota eliminada correctamente.", "success");
+                  const currentEditId = document.getElementById('hc-edit-id').value;
+                  if(String(currentEditId) === String(id)) {
+                      document.getElementById('hc-text').value = '';
+                      document.getElementById('hc-edit-id').value = '';
+                      const btn = document.getElementById('btn-save-hc');
+                      btn.innerHTML = '<i data-lucide="save" class="w-3 h-3"></i> Guardar';
+                      btn.classList.add('bg-[#008395]');
+                      btn.classList.remove('bg-orange-500');
+                  }
+                  loadTimeline(patientName);
+              } else { showToast("Error al eliminar: " + res.error, "error"); }
+          }).deletePatientHistory(id);
+      });
+  }
+
+  function cerrarModalWhatsapp() { document.getElementById('modal-whatsapp').classList.add('hidden'); }
+  function confirmarEnvioWhatsapp() {
+      const tel = document.getElementById('hc-data-phone').value;
+      const text = document.getElementById('hc-last-evo-text').value;
+      const date = document.getElementById('hc-last-evo-date').value;
+      const name = document.getElementById('hc-patient-name').innerText;
+      const pNombre = CACHE_DATA.currentUserInfo.nombre || "Profesional";
+      const pTitulo = CACHE_DATA.currentUserInfo.titulo;
+      const firma = pTitulo ? pNombre + " (" + pTitulo + ")" : pNombre;
+      let num = tel.replace(/\D/g,'');
+      if(!num.startsWith('549')) num = '549' + num;
+      const mensajeFinal = 'Hola!, te paso la devolución de la sesión de hoy de ' + name + ' (' + date + '):\n\n' + text + '\n\nSaludos,\n' + firma;
+      const msg = encodeURIComponent(mensajeFinal);
+      window.open('https://wa.me/' + num + '?text=' + msg, '_blank');
+      cerrarModalWhatsapp();
+  }
+  
+  function toggleDictation() {
+     const btn = document.getElementById('btn-mic');
+     const area = document.getElementById('hc-text');
+
+     // 1. SI ES CELULAR/APK: Se usa el teclado (En Android el iframe nunca deja usar la web)
+     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
+         area.focus(); 
+         showToast("En celulares, toca el ícono de micrófono 🎤 en tu teclado para dictar.", "success");
+         return; 
+     }
+
+     // 2. SI ES PC: Intentamos usar el dictado de la Web
+     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) { 
+         return showToast("Tu navegador no soporta dictado por voz.", 'error'); 
+     }
+     
+     if (IS_REC) { if (REC) REC.stop(); return; }
+     
+     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+     REC = new SpeechRecognition(); 
+     REC.lang = 'es-AR';
+     REC.continuous = true;
+     REC.interimResults = false;
+     
+     REC.onstart = function() { 
+         IS_REC = true; 
+         btn.innerHTML = '<i data-lucide="square" class="w-3 h-3 text-red-600 fill-current"></i> Parar'; 
+         btn.classList.add('text-red-600', 'bg-red-50', 'border-red-200'); 
+         btn.classList.remove('text-gray-600'); 
+         lucide.createIcons(); 
+         showToast("Escuchando... puedes hablar.", "success"); 
+     };
+     
+     REC.onend = function() { 
+         IS_REC = false; 
+         btn.innerHTML = '<i data-lucide="mic" class="w-3 h-3"></i> Dictar'; 
+         btn.classList.remove('text-red-600', 'bg-red-50', 'border-red-200'); 
+         btn.classList.add('text-gray-600'); 
+         lucide.createIcons(); 
+     };
+     
+     REC.onresult = function(e) { 
+         let newText = '';
+         for (let i = e.resultIndex; i < e.results.length; ++i) { 
+             if (e.results[i].isFinal) { newText += e.results[i][0].transcript; } 
+         }
+         if (newText) { 
+             newText = newText.trim(); 
+             newText = newText.charAt(0).toUpperCase() + newText.slice(1); 
+             area.value += (area.value ? ' ' : '') + newText; 
+         }
+     };
+     
+     REC.onerror = function(event) { 
+         // AQUI OCURRE LA MAGIA PARA SALTAR EL BLOQUEO DE CHROME
+         if (event.error === 'not-allowed') {
+             
+             if (window.top !== window.self) {
+                 // Si detecta que está encerrado en el iframe de Google, ofrece escapar
+                 abrirModalConfirm("Chrome bloqueó el micrófono por seguridad. Para usarlo, debemos abrir la app en 'Modo Directo' (fuera de la caja de Google). ¿Recargar ahora?", function() {
+                     // Esto rompe el marco y recarga la URL real desnuda
+                     window.open(document.location.href, "_top");
+                 });
+             } else {
+                 // Si ya está fuera del marco pero sigue bloqueado
+                 showToast("Haz clic en el candado 🔒 junto a la URL arriba a la izquierda y permite el Micrófono.", 'error');
+             }
+
+         } else if (event.error !== 'no-speech') { 
+             showToast("Error de micrófono: " + event.error, 'error'); 
+         } 
+         
+         IS_REC = false;
+         btn.innerHTML = '<i data-lucide="mic" class="w-3 h-3"></i> Dictar'; 
+         btn.classList.remove('text-red-600', 'bg-red-50', 'border-red-200'); 
+         btn.classList.add('text-gray-600'); 
+         lucide.createIcons();  
+     };
+     
+     REC.start();
+  }
+
+  function printHC() {
+      const paciente = document.getElementById('hc-patient-name').innerText;
+      const dni = document.getElementById('hc-data-dni').value;
+      const afiliado = document.getElementById('hc-data-afiliado').value;
+      const dx = document.getElementById('hc-data-dx').value;
+      const pNombre = CACHE_DATA.currentUserInfo.nombre;
+      const pTitulo = CACHE_DATA.currentUserInfo.titulo;
+      const pFirmaUrl = CACHE_DATA.firmaUrl;
+      let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;color:#333}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #008395;padding-bottom:15px;margin-bottom:20px}.title h1{margin:0;font-size:24px;color:#008395;font-weight:bold}.title p{margin:5px 0 0;font-size:11px;color:#666}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px}.info-item{background:#f8f9fa;padding:10px;border-radius:5px;border-left:3px solid #008395}.info-item .label{display:block;font-size:9px;color:#666;text-transform:uppercase;font-weight:bold;margin-bottom:3px}.info-item .val{display:block;font-size:13px;color:#333;font-weight:600}table{width:100%;border-collapse:collapse;margin-top:15px}thead{background:#008395;color:white}th{padding:10px;text-align:left;font-size:11px;font-weight:bold;text-transform:uppercase}td{padding:10px;border-bottom:1px solid #e0e0e0;font-size:11px;vertical-align:top}tbody tr:hover{background:#f8f9fa}.footer{margin-top:40px;padding-top:20px;border-top:2px solid #ddd;text-align:center}.firma-img{max-width:200px;height:auto;margin:0 auto 10px;display:block}.firma-box{display:inline-block;text-align:center;padding:15px 30px;border-top:2px solid #333;margin-top:10px}@media print{body{margin:15px}.header{page-break-after:avoid}}</style></head><body>';
+      html += '<div class="header"><div class="title"><h1>Historia Clínica</h1><p>Fecha de emisión: ' + new Date().toLocaleDateString('es-AR') + '</p></div><div><img src="https://lh3.googleusercontent.com/d/15_VzgzHnHcu0jSrnU4ddmcl65-VnQXZq" style="height:70px;width:auto;"></div></div>';
+      html += '<div class="info-grid"><div><div class="info-item"><span class="label">Paciente</span><span class="val">' + paciente + '</span></div><div class="info-item"><span class="label">DNI</span><span class="val">' + dni + '</span></div></div><div><div class="info-item"><span class="label">N° Afiliado</span><span class="val">' + afiliado + '</span></div><div class="info-item"><span class="label">Diagnóstico</span><span class="val">' + dx + '</span></div></div></div>';
+      html += '<table><thead><tr><th width="20%">Fecha</th><th>Evolución</th><th width="25%">Profesional</th></tr></thead><tbody>';
+      if(CURRENT_HC_HISTORIAL.length === 0) { html += '<tr><td colspan="3" style="text-align:center; padding: 20px; color:#999;">Sin registros</td></tr>'; } 
+      else { CURRENT_HC_HISTORIAL.forEach(function(h) { html += '<tr><td>' + h.fecha + '</td><td style="white-space: pre-wrap;">' + h.texto + '</td><td>' + h.profesional + '</td></tr>'; }); }
+      html += '</tbody></table>';
+      html += '<div class="footer">';
+      if(pFirmaUrl) { html += '<img src="' + pFirmaUrl + '" class="firma-img"><br>'; }
+      html += '<div class="firma-box"><strong>' + pNombre + '</strong><br><span style="font-size:11px;color:#666;">' + pTitulo + '</span></div></div>';
+      html += '</body></html>';
+      
+      // Crear un iframe invisible para imprimir sin abrir pestañas nuevas (Compatible con Android)
+      let printFrame = document.getElementById('print-iframe');
+      if (!printFrame) {
+          printFrame = document.createElement('iframe');
+          printFrame.id = 'print-iframe';
+          printFrame.style.position = 'fixed';
+          printFrame.style.right = '0';
+          printFrame.style.bottom = '0';
+          printFrame.style.width = '0';
+          printFrame.style.height = '0';
+          printFrame.style.border = 'none';
+          printFrame.style.zIndex = '-1000';
+          document.body.appendChild(printFrame);
+      }
+      
+      // Escribir el HTML en el iframe
+      printFrame.contentDocument.open();
+      printFrame.contentDocument.write(html);
+      printFrame.contentDocument.close();
+      
+      // Enfocar e imprimir tras un breve retardo para asegurar que las imágenes carguen
+      setTimeout(function() {
+          printFrame.contentWindow.focus();
+          printFrame.contentWindow.print();
+      }, 500);
+  }
+  
+  function openPatientFolder(id, name) {
+    document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
+    document.getElementById('view-browser').classList.remove('hidden');
+    document.getElementById('browser-title').innerText = "Carpeta: " + name;
+    EXIT_VIEW = 'pacientes';
+    NAV_HISTORY = [];
+    CURRENT_FOLDER_ID = id;
+    IS_LIST_VIEW = true;
+       
+    fetchFiles(id);
+  }
+
+  function loadBrowser(type) {
+    const titles = { horarios: 'Horarios', documentacion: 'Documentación', instructivos: 'Instructivos' };
+    document.getElementById('browser-title').innerText = titles[type];
+    const id = CACHE_DATA.carpetas[type];
+    if(!id) { showBrowserError('Carpeta no configurada.'); return; }
+    EXIT_VIEW = 'dashboard';
+    NAV_HISTORY = [];
+    CURRENT_FOLDER_ID = id;
+    IS_LIST_VIEW = false;
+    fetchFiles(id);
+  }
+
+  function loadSubfolder(folderName) {
+    const niceName = folderName.replace('_', ' ');
+    document.getElementById('browser-title').innerText = niceName;
+    const parentId = CACHE_DATA.carpetas.documentacion; 
+    if(!parentId) { showBrowserError('No tienes configurada tu carpeta de prestador.'); return; }
+    EXIT_VIEW = 'dashboard';
+    NAV_HISTORY = [];
+    IS_LIST_VIEW = false;
+    resetBrowser();
+    google.script.run.withSuccessHandler(onFilesFetched).getSubfolderContents(parentId, folderName);
+  }
+
+  function goBackBrowser() {
+      if (NAV_HISTORY.length > 0) { const prevId = NAV_HISTORY.pop(); CURRENT_FOLDER_ID = prevId; fetchFiles(prevId); } 
+      else { nav(EXIT_VIEW); }
+  }
+
+  function navigateFolder(id, name) { fetchFiles(id); }
+
+  function fetchFiles(id) {
+    resetBrowser();
+    google.script.run.withSuccessHandler(onFilesFetched).getFolderContents(id);
+  }
+
+  function onFilesFetched(res) {
+    if(res.error) { showBrowserError(res.error); return; }
+      if(res.id) { CURRENT_FOLDER_ID = res.id; }
+      CURRENT_FILES = res.files || [];
+      if(CURRENT_FILES.length === 0) { showBrowserError('Carpeta vacía'); return; }
+      document.getElementById('browser-msg').classList.add('hidden');
+      IS_LIST_VIEW ? renderFilesList(CURRENT_FILES) : renderFilesGrid(CURRENT_FILES);
+  }
+
+  function resetBrowser() {
+    CURRENT_FILES = []; 
+    const container = document.getElementById('browser-container');
+    const msg = document.getElementById('browser-msg'); 
+    container.innerHTML = ''; 
+    container.className = ''; 
+    msg.innerHTML = '<div class="loader mb-3"></div><p class="text-xs">Buscando archivos...</p>'; 
+    msg.classList.remove('hidden');
+  }
+
+  function showBrowserError(txt) {
+     const msg = document.getElementById('browser-msg');
+     msg.innerHTML = '<div class="p-6 bg-yellow-50 text-yellow-700 rounded-xl border border-yellow-200"><p class="font-bold text-xs">Atención</p><p class="text-[10px]">' + txt + '</p></div>';
+     msg.classList.remove('hidden');
+  }
+
+  function toggleFileView() {
+      IS_LIST_VIEW = !IS_LIST_VIEW;
+      const icon = document.getElementById('icon-view-mode');
+      icon.setAttribute('data-lucide', IS_LIST_VIEW ? 'layout-grid' : 'list');
+      lucide.createIcons();
+      if(CURRENT_FILES.length > 0) IS_LIST_VIEW ? renderFilesList(CURRENT_FILES) : renderFilesGrid(CURRENT_FILES);
+  }
+
+  function renderFilesList(files) {
+    const container = document.getElementById('browser-container'); 
+    container.innerHTML = ''; 
+    container.className = 'flex flex-col gap-2'; 
+    files.forEach(function(f, index) {
+      let iconColor = 'text-gray-400'; let icon = 'file'; let itemClass = 'hover:bg-slate-50'; let isFolder = f.mime.includes('folder');
+      if(f.mime.includes('pdf')) { iconColor = 'text-red-500'; } else if(f.mime.includes('spreadsheet')) { iconColor = 'text-green-600'; } else if(f.mime.includes('image')) { iconColor = 'text-[#008395]'; icon = 'image'; } else if(isFolder) { iconColor = 'text-yellow-500'; icon = 'folder'; itemClass = 'hover:bg-slate-100 cursor-pointer'; }
+      if(isFolder) {
+        container.innerHTML += '<div onclick="navigateFolderFromIndex(' + index + ')" class="flex items-center p-2.5 bg-white border border-gray-200 rounded-lg transition-colors group ' + itemClass + '"><div class="' + iconColor + ' mr-3"><i data-lucide="' + icon + '" class="w-4 h-4"></i></div><div class="flex-1 min-w-0"><p class="text-xs font-bold text-gray-700 truncate">' + f.name + '</p><p class="text-[9px] text-gray-400">' + f.date + ' • ' + f.size + '</p></div><div class="text-gray-300 group-hover:text-[#008395]"><i data-lucide="chevron-right" class="w-4 h-4"></i></div></div>';
+      } else {
+        container.innerHTML += '<a href="' + f.url + '" target="_blank" class="flex items-center p-2.5 bg-white border border-gray-200 rounded-lg transition-colors group ' + itemClass + '"><div class="' + iconColor + ' mr-3"><i data-lucide="' + icon + '" class="w-4 h-4"></i></div><div class="flex-1 min-w-0"><p class="text-xs font-bold text-gray-700 truncate">' + f.name + '</p><p class="text-[9px] text-gray-400">' + f.date + ' • ' + f.size + '</p></div><div class="text-gray-300 group-hover:text-[#008395]"><i data-lucide="external-link" class="w-3 h-3"></i></div></a>';
+      }
+    });
+    lucide.createIcons();
+  }
+
+  function renderFilesGrid(files) {
+    const container = document.getElementById('browser-container'); 
+    container.innerHTML = ''; 
+    container.className = 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3';
+    files.forEach(function(f, index) {
+      let color = 'text-gray-400'; let icon = 'file'; let itemClass = 'hover:shadow-lg hover:border-[#008395]'; let isFolder = f.mime.includes('folder');
+      if(f.mime.includes('pdf')) { color = 'text-red-500'; } else if(f.mime.includes('spreadsheet')) { color = 'text-green-600'; } else if(f.mime.includes('image')) { color = 'text-[#008395]'; icon = 'image'; } else if(isFolder) { color = 'text-yellow-500'; icon = 'folder'; itemClass = 'hover:bg-slate-50 hover:border-yellow-400 cursor-pointer shadow-sm'; }
+      if(isFolder) {
+        container.innerHTML += '<div onclick="navigateFolderFromIndex(' + index + ')" class="bg-white p-3 rounded-xl border border-gray-200 transition-all text-center group flex flex-col items-center justify-center h-28 ' + itemClass + '"><div class="' + color + ' mb-1.5 group-hover:scale-110 transition-transform"><i data-lucide="' + icon + '" class="w-6 h-6"></i></div><div class="text-[10px] font-bold text-gray-700 truncate w-full px-1" title="' + f.name + '">' + f.name + '</div></div>';
+      } else {
+        container.innerHTML += '<a href="' + f.url + '" target="_blank" class="bg-white p-3 rounded-xl border border-gray-200 transition-all text-center group flex flex-col items-center justify-center h-28 ' + itemClass + '"><div class="' + color + ' mb-1.5 group-hover:scale-110 transition-transform"><i data-lucide="' + icon + '" class="w-6 h-6"></i></div><div class="text-[10px] font-bold text-gray-700 truncate w-full px-1" title="' + f.name + '">' + f.name + '</div></a>';
+      }
+    });
+    lucide.createIcons();
+  } 
+
+  function runSync() {
+    const btn = document.getElementById('admin-sync-btn'); 
+    const prev = btn.innerHTML;
+    btn.innerHTML = '<div class="loader w-3 h-3 border-2 border-white border-t-transparent mr-2"></div> Sync...'; 
+    btn.disabled = true;
+    google.script.run.withSuccessHandler(function(res) { 
+      showToast(res.message, 'success'); 
+      btn.innerHTML = prev; 
+      btn.disabled = false; 
+      google.script.run.withSuccessHandler(initApp).getAppData(USER_EMAIL_GLOBAL); 
+    }).sincronizarCarpetasDrive();
+  }
+</script>
+
+  </body>
+</html>
