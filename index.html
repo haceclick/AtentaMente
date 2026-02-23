@@ -564,8 +564,29 @@
   }
 
   function showError(e) { 
-     document.getElementById('loader').classList.add('hidden');
-     showToast("Error: " + e.message, 'error');
+     // 1. Obtenemos la pantalla de carga (que ocupa toda la pantalla)
+     const loader = document.getElementById('loader');
+     
+     // 2. Le ponemos un fondo opaco (blanco/gris) para que sea imposible ver la app de fondo
+     loader.className = "fixed inset-0 bg-slate-100 z-[100] flex flex-col items-center justify-center p-4";
+     
+     // 3. Reemplazamos la ruedita de carga por un gran cartel de Acceso Denegado
+     loader.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border-t-4 border-red-500">
+            <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-red-50 mb-4">
+                <svg class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Acceso Denegado</h2>
+            <p class="text-sm text-gray-600 mb-8 font-medium">${e.message}</p>
+            
+            <a href="https://www.haceclick-ai.com/atentamente" class="inline-block w-full px-6 py-3 bg-[#008395] text-white rounded-xl font-bold hover:bg-[#006064] transition-colors shadow-md">
+                Volver al Portal de Login
+            </a>
+        </div>
+     `;
+     
+     // 4. Limpiamos la URL por seguridad (borra el token falso de la barra de direcciones)
+     window.history.replaceState({}, document.title, window.location.pathname);
   }
   
   function showToast(msg, type) {
@@ -1281,5 +1302,6 @@
   </body>
 
 </html>
+
 
 
