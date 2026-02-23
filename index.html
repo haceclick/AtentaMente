@@ -467,19 +467,44 @@
     });
   }
 
-  // --- ARRANQUE DE LA APP ---
+  // 1. PEGA AQUÍ LA URL DE TU SCRIPT DE GOOGLE (La que termina en /exec)
+  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-ZIsovlz_-wUP1TdzjLpL_Xp4JqXt2-_ZKm0Y-gi6555SexGy2iMi5nVbN-MJzzMp_w/exec"; 
+
+  // 2. NUESTRO PUENTE DE COMUNICACIÓN (Reemplaza a google.script.run)
+  function llamarBackend(accion, parametros, funcionExito, funcionError) {
+    fetch(GOOGLE_SCRIPT_URL, {
+      redirect: "follow", // Súper importante para Google Apps Script
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain evita bloqueos CORS
+      body: JSON.stringify({ accion: accion, parametros: parametros })
+    })
+    .then(respuesta => respuesta.json())
+    .then(datos => {
+      if (datos.estado === 'exito') {
+        if (funcionExito) funcionExito(datos.respuesta);
+      } else {
+        if (funcionError) funcionError(new Error(datos.mensaje));
+      }
+    })
+    .catch(error => {
+      console.error("Error conectando con Google:", error);
+      if (funcionError) funcionError(error);
+    });
+  }
+
+  // 3. EL NUEVO ARRANQUE DE LA APP
   window.onload = function() {
     if(typeof lucide !== 'undefined') lucide.createIcons();
     
-    // 1. Capturamos el UID directamente de la URL de tu portal (ej: ?uid=juan@mail.com)
+    // Capturamos el UID directamente de la URL (Ej: ?uid=dP7aY4k)
     const urlParams = new URLSearchParams(window.location.search);
     USER_EMAIL_GLOBAL = urlParams.get('uid') || "";
     
-    console.log("🔑 Token:", USER_EMAIL_GLOBAL ? USER_EMAIL_GLOBAL : "Ninguno");
+    console.log("🔑 Token obtenido de la URL:", USER_EMAIL_GLOBAL ? USER_EMAIL_GLOBAL : "Ninguno");
 
-    // 2. Llamamos a Google usando nuestro nuevo puente
-    llamarBackend("getAppData", [USER_EMAIL_GLOBAL], initApp, showError);
-  }
+    // En lugar de google.script.run, usamos nuestra nueva función:
+    llamarBackend('getAppData', [USER_EMAIL_GLOBAL], initApp, showError);
+  };
 
   function initApp(data) {
     CACHE_DATA = data;
@@ -1361,3 +1386,4 @@
   </body>
 
 </html>
+
