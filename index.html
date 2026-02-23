@@ -397,9 +397,8 @@
     </main>
 
 <script>
-  
   // Variables globales limpias
-  var USER_EMAIL_GLOBAL = ""; 
+  var USER_EMAIL_GLOBAL = "";
   var CACHE_DATA = null;
   var CURRENT_FILES = [];
   var IS_LIST_VIEW = false; 
@@ -411,23 +410,16 @@
   var CURRENT_FOLDER_ID = null;
   var SHOW_ONLY_PENDING = false;
 
-  // ==========================================
   // ESCUDO DE SEGURIDAD: APAGAR CONSOLA
-  // ==========================================
-  // Esto evita que herramientas de depuración o compiladores en Android 
-  // impriman tokens o datos sensibles de pacientes en el log.
   if (typeof console !== "undefined") {
       console.log = function() {};
       console.info = function() {};
       console.warn = function() {};
       console.table = function() {};
-      // Opcional: puedes dejar console.error activo para cazar fallos críticos, 
-      // o comentarlo también si quieres un bloqueo total.
   }
 
   // --- CONTROLADOR DEL MODAL DE CONFIRMACIÓN ---
   var accionConfirmada = null;
-  
   function abrirModalConfirm(mensaje, accion) {
       document.getElementById('confirm-msg').innerText = mensaje;
       accionConfirmada = accion;
@@ -444,38 +436,15 @@
       cerrarModalConfirm();
   }
 
-// Pega aquí la URL que copiaste en el Paso 2
-  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-ZIsovlz_-wUP1TdzjLpL_Xp4JqXt2-_ZKm0Y-gi6555SexGy2iMi5nVbN-MJzzMp_w/exec"; 
-
-  // Esta función es tu nuevo "google.script.run"
-  function llamarBackend(accion, parametros, funcionExito, funcionError) {
-    fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' }, // text/plain evita bloqueos de seguridad CORS
-      body: JSON.stringify({ accion: accion, parametros: parametros })
-    })
-    .then(respuesta => respuesta.json())
-    .then(datos => {
-      if (datos.estado === 'exito') {
-        if (funcionExito) funcionExito(datos.respuesta);
-      } else {
-        if (funcionError) funcionError(new Error(datos.mensaje));
-      }
-    })
-    .catch(error => {
-      if (funcionError) funcionError(error);
-    });
-  }
-
-  // 1. PEGA AQUÍ LA URL DE TU SCRIPT DE GOOGLE (La que termina en /exec)
-  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-ZIsovlz_-wUP1TdzjLpL_Xp4JqXt2-_ZKm0Y-gi6555SexGy2iMi5nVbN-MJzzMp_w/exec"; 
+  // 1. URL DE TU SCRIPT DE GOOGLE
+  const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-ZIsovlz_-wUP1TdzjLpL_Xp4JqXt2-_ZKm0Y-gi6555SexGy2iMi5nVbN-MJzzMp_w/exec";
 
   // 2. NUESTRO PUENTE DE COMUNICACIÓN (Reemplaza a google.script.run)
   function llamarBackend(accion, parametros, funcionExito, funcionError) {
     fetch(GOOGLE_SCRIPT_URL, {
-      redirect: "follow", // Súper importante para Google Apps Script
+      redirect: "follow", 
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // text/plain evita bloqueos CORS
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ accion: accion, parametros: parametros })
     })
     .then(respuesta => respuesta.json())
@@ -487,7 +456,6 @@
       }
     })
     .catch(error => {
-      console.error("Error conectando con Google:", error);
       if (funcionError) funcionError(error);
     });
   }
@@ -500,9 +468,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     USER_EMAIL_GLOBAL = urlParams.get('uid') || "";
     
-    console.log("🔑 Token obtenido de la URL:", USER_EMAIL_GLOBAL ? USER_EMAIL_GLOBAL : "Ninguno");
-
-    // En lugar de google.script.run, usamos nuestra nueva función:
+    // Usamos nuestra nueva función para arrancar
     llamarBackend('getAppData', [USER_EMAIL_GLOBAL], initApp, showError);
   };
 
@@ -512,7 +478,6 @@
     
     const userEl = document.getElementById('user-email'); 
     if(userEl) userEl.innerText = data.userDisplayName || data.user;
-    
     const roleEl = document.getElementById('user-role'); 
     if(roleEl) roleEl.innerText = data.role;
     
@@ -531,77 +496,76 @@
     renderFacturasTable();
 
     // Sincronización en segundo plano de las notificaciones
-    // Sincronización en segundo plano de las notificaciones (ACELERADA A 10 SEGS)
-  setInterval(function() {
-      if (!document.getElementById('view-dashboard').classList.contains('hidden')) {
-          refreshNotifsSilent();
-      }
-  }, 10000); // <-- Cambiado a 10 segundos
+    setInterval(function() {
+        if (!document.getElementById('view-dashboard').classList.contains('hidden')) {
+            refreshNotifsSilent();
+        }
+    }, 10000);
+  }
 
+  // --- REEMPLAZO EN NOTIFICACIONES ---
   function guardarOEditarNotificacion() {
       const id = document.getElementById('notif-id').value;
       const titulo = document.getElementById('notif-titulo').value;
       const mensaje = document.getElementById('notif-mensaje').value;
       
       if(!titulo || !mensaje) return showToast("Complete título y mensaje", "error");
-      
       const btn = document.getElementById('btn-save-notif');
       const prev = btn.innerText;
       btn.innerText = '...';
       btn.disabled = true;
       
       const autor = CACHE_DATA.currentUserInfo.nombre || "Admin";
-      
       if(id) {
-          // 1. ACTUALIZACIÓN LOCAL INMEDIATA (Tiempo Real para ti)
           const idx = CACHE_DATA.notificaciones.findIndex(function(x) { return String(x.id) === String(id); });
           if(idx > -1) {
               CACHE_DATA.notificaciones[idx].titulo = titulo;
               CACHE_DATA.notificaciones[idx].mensaje = mensaje;
-              renderNotifications(); // Se dibuja al instante
+              renderNotifications(); 
           }
           toggleNotifForm();
           btn.innerText = prev;
           btn.disabled = false;
           showToast("Notificación actualizada", "success");
 
-          // 2. Guardado en Google Sheets en segundo plano
-          google.script.run.withFailureHandler(function(err){
+          // Llamada por puente
+          llamarBackend('updateNotificacion', [id, titulo, mensaje], null, function(err){
              showToast("Error al guardar en el servidor", "error");
-             refreshNotifsSilent(); // Revertir si falla
-          }).updateNotificacion(id, titulo, mensaje);
-          
+             refreshNotifsSilent(); 
+          });
       } else {
-          // CREAR NUEVA
-          google.script.run.withSuccessHandler(function(res) {
+          // Llamada por puente
+          llamarBackend('guardarNotificacion', [titulo, mensaje, autor], function(res) {
               btn.innerText = prev;
               btn.disabled = false;
               toggleNotifForm();
               showToast("Notificación publicada", "success");
-              refreshNotifsSilent(); // Trae el ID nuevo generado en el servidor
-          }).guardarNotificacion(titulo, mensaje, autor);
+              refreshNotifsSilent(); 
+          }, function(err) {
+              btn.innerText = prev;
+              btn.disabled = false;
+              showToast("Error al publicar", "error");
+          });
       }
   }
 
   function borrarNotificacion(id) {
       abrirModalConfirm("¿Está seguro que desea eliminar esta notificación?", function() {
-          // 1. ACTUALIZACIÓN LOCAL INMEDIATA (Desaparece al instante)
           CACHE_DATA.notificaciones = CACHE_DATA.notificaciones.filter(function(x) { return String(x.id) !== String(id); });
           renderNotifications();
           showToast("Notificación eliminada", "success");
 
-          // 2. Borrado en Google Sheets en segundo plano
-          google.script.run.withFailureHandler(function(err){
+          // Llamada por puente
+          llamarBackend('eliminarNotificacion', [id], null, function(err){
              showToast("Error al eliminar en el servidor", "error");
-             refreshNotifsSilent(); // Revertir visualmente si hubo error de conexión
-          }).eliminarNotificacion(id);
+             refreshNotifsSilent(); 
+          });
       });
-  }
   }
 
   function showError(e) { 
      document.getElementById('loader').classList.add('hidden');
-     showToast("Error: " + e.message, 'error'); 
+     showToast("Error: " + e.message, 'error');
   }
   
   function showToast(msg, type) {
@@ -641,7 +605,7 @@
     setText('kpi-aprobacion', percent + '%');
     
     const hoy = new Date(); 
-    const max = new Date(); max.setMonth(max.getMonth() + 2); 
+    const max = new Date(); max.setMonth(max.getMonth() + 2);
     const vtos = [];
     pts.forEach(function(p) { 
       checkDate(p, p.vtoRNP, 'RNP', hoy, max, vtos); 
@@ -651,11 +615,9 @@
     
     const stats = CACHE_DATA.financialStats || { estimatedIncome: 0, monthlyBilling: [0,0,0], breakdown: {}, avgDelays: {} };
     setText('kpi-ingresos-est', formatMoney(stats.estimatedIncome));
-    
     const breakdownContainer = document.getElementById('breakdown-os');
     let breakdownHtml = '';
     const sortedOS = Object.keys(stats.breakdown || {}).sort((a,b) => stats.breakdown[b] - stats.breakdown[a]);
-    
     if (sortedOS.length === 0) {
         breakdownHtml = '<div class="p-3 text-center text-gray-400 italic">Sin ingresos estimados</div>';
     } else {
@@ -675,13 +637,11 @@
     const maxVal = Math.max(...monthlyBilling, 1);
     const labels = ['Actual', 'Mes Ant.', 'Hace 2 M'];
     const colors = ['bg-[#008395]', 'bg-[#2dd4bf]', 'bg-[#99f6e4]'];
-    
     let chartHtml = '';
     for(let i = 2; i >= 0; i--) {
         const val = monthlyBilling[i];
         const hPct = Math.max((val / maxVal) * 100, 10);
         const color = colors[i];
-        
         chartHtml += '<div class="flex flex-col items-center flex-1 h-full justify-end group">' +
             '<div class="w-full max-w-[40px] rounded-t-md ' + color + ' bar-graph-col relative" style="height:' + hPct + '%">' +
                '<div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 font-mono">' + formatMoney(val) + '</div>' +
@@ -695,7 +655,6 @@
     if(typeof lucide !== 'undefined') lucide.createIcons();
   }
   
-  // --- NOTIFICACIONES ACTUALIZADAS ---
   function renderNotifications() {
       const list = document.getElementById('list-notificaciones');
       const notifs = CACHE_DATA.notificaciones || [];
@@ -729,25 +688,24 @@
       if(window.lucide) lucide.createIcons();
   }
 
-  // --- SINCRONIZACION NOTIFICACIONES ---
   function refreshNotifsSilent() {
-      google.script.run.withSuccessHandler(function(notifs) {
+      llamarBackend('getOnlyNotifications', [], function(notifs) {
           if(JSON.stringify(CACHE_DATA.notificaciones) !== JSON.stringify(notifs)) {
               CACHE_DATA.notificaciones = notifs;
               renderNotifications();
           }
-      }).getOnlyNotifications();
+      });
   }
 
   function refreshNotifsManual() {
       const list = document.getElementById('list-notificaciones');
       list.style.opacity = '0.5';
-      google.script.run.withSuccessHandler(function(notifs) {
+      llamarBackend('getOnlyNotifications', [], function(notifs) {
           CACHE_DATA.notificaciones = notifs;
           renderNotifications();
           list.style.opacity = '1';
           showToast("Notificaciones actualizadas", "success");
-      }).getOnlyNotifications();
+      });
   }
   
   function toggleNotifForm(isEdit) {
@@ -768,55 +726,6 @@
       document.getElementById('notif-mensaje').value = n.mensaje;
       document.getElementById('btn-save-notif').innerText = 'Actualizar';
       document.getElementById('notif-form').classList.remove('hidden');
-  }
-  
-  function guardarOEditarNotificacion() {
-      const id = document.getElementById('notif-id').value;
-      const titulo = document.getElementById('notif-titulo').value;
-      const mensaje = document.getElementById('notif-mensaje').value;
-      
-      if(!titulo || !mensaje) return showToast("Complete título y mensaje", "error");
-      
-      const btn = document.getElementById('btn-save-notif');
-      const prev = btn.innerText;
-      btn.innerText = '...';
-      btn.disabled = true;
-      
-      const autor = CACHE_DATA.currentUserInfo.nombre || "Admin";
-      
-      if(id) {
-          google.script.run.withSuccessHandler(function(res) {
-              btn.innerText = prev;
-              btn.disabled = false;
-              if(res.success) {
-                  toggleNotifForm();
-                  showToast("Notificación actualizada", "success");
-                  refreshNotifsSilent(); // Actualizar forzosamente
-              } else { showToast(res.error, "error"); }
-          }).updateNotificacion(id, titulo, mensaje);
-      } else {
-          google.script.run.withSuccessHandler(function(res) {
-              btn.innerText = prev;
-              btn.disabled = false;
-              toggleNotifForm();
-              showToast("Notificación publicada", "success");
-              refreshNotifsSilent(); // Actualizar forzosamente
-          }).guardarNotificacion(titulo, mensaje, autor);
-      }
-  }
-
-  function borrarNotificacion(id) {
-      abrirModalConfirm("¿Está seguro que desea eliminar esta notificación?", function() {
-          const list = document.getElementById('list-notificaciones');
-          list.style.opacity = '0.5';
-          google.script.run.withSuccessHandler(function(res) {
-              list.style.opacity = '1';
-              if(res.success) {
-                  showToast("Notificación eliminada", "success");
-                  refreshNotifsSilent(); 
-              } else { showToast(res.error, "error"); }
-          }).eliminarNotificacion(id);
-      });
   }
 
   function setText(id, val) { const el = document.getElementById(id); if(el) el.innerText = val; }
@@ -868,7 +777,6 @@
         const val = input.value.toLowerCase();
         if(val) filters[colIndex] = val;
     });
-
     const rows = document.querySelectorAll('.factura-row');
     rows.forEach(function(row) {
         let visible = true;
@@ -938,7 +846,6 @@
     const btn = document.getElementById('btn-'+view); 
     if(btn) btn.classList.add('active');
     document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
-    
     if(view === 'pacientes' || view === 'dashboard' || view === 'misfacturas') {
       document.getElementById('view-'+view).classList.remove('hidden');
     } else {
@@ -950,12 +857,9 @@
       else loadBrowser(view);
     }
 
-    
-    // REFRESCO AUTOMÁTICO DE NOTIFICACIONES AL VOLVER AL DASHBOARD
     if(view === 'dashboard') {
         refreshNotifsSilent();
     }
-
     if(typeof lucide !== 'undefined') lucide.createIcons();
   }
 
@@ -1004,6 +908,7 @@
      lucide.createIcons();
   }
 
+  // --- REEMPLAZO EN HISTORIA CLÍNICA ---
   function loadTimeline(name) {
      const container = document.getElementById('hc-timeline');
      if(!container) return;
@@ -1012,7 +917,7 @@
      const pTitulo = CACHE_DATA.currentUserInfo.titulo;
      const miFirma = pTitulo ? pNombre + " (" + pTitulo + ")" : pNombre;
 
-     google.script.run.withSuccessHandler(function(res) {
+     llamarBackend('getPatientHistory', [name], function(res) {
          const divNombre = document.getElementById('hc-patient-name');
          const nombreEnPantalla = divNombre ? divNombre.innerText.trim() : "";
          const nombreQueLlego = name.trim();
@@ -1020,6 +925,7 @@
          container.innerHTML = '';
          CURRENT_HC_HISTORIAL = res; 
          const contador = document.getElementById('hc-count');
+         
          if(contador) contador.innerText = res.length;
          if(!res || res.length === 0) { container.innerHTML = '<p class="text-xs text-gray-400 italic">No hay registros aún.</p>'; return; }
          res.forEach(function(item, index) {
@@ -1050,7 +956,7 @@
              '</div>';
          });
          if(window.lucide) lucide.createIcons();
-     }).getPatientHistory(name);
+     });
   }
 
   function saveHC() {
@@ -1066,6 +972,7 @@
      const pTitulo = CACHE_DATA.currentUserInfo.titulo;
      const profesionalStr = pTitulo ? pNombre + " (" + pTitulo + ")" : pNombre;
      const payload = { id: editId, paciente: name, texto: text, profesional: profesionalStr };
+     
      const handler = function(res) {
          btn.disabled = false;
          btn.innerHTML = '<i data-lucide="save" class="w-3 h-3"></i> Guardar';
@@ -1083,15 +990,19 @@
              if(tel && tel.length > 5 && pacienteActualEnPantalla === name) { document.getElementById('modal-whatsapp').classList.remove('hidden'); }
          }
      };
-     if (editId) { google.script.run.withSuccessHandler(handler).updatePatientHistory(payload); } 
-     else { google.script.run.withSuccessHandler(handler).savePatientHistory(payload); }
+
+     if (editId) { 
+         llamarBackend('updatePatientHistory', [payload], handler);
+     } else { 
+         llamarBackend('savePatientHistory', [payload], handler); 
+     }
   }
 
   function deleteNote(id, patientName) {
       abrirModalConfirm("¿Estás seguro de que deseas eliminar esta nota permanentemente?", function() {
           const container = document.getElementById('hc-timeline');
           container.style.opacity = '0.5';
-          google.script.run.withSuccessHandler(function(res) {
+          llamarBackend('deletePatientHistory', [id], function(res) {
               container.style.opacity = '1';
               if (res.success) {
                   showToast("Nota eliminada correctamente.", "success");
@@ -1106,7 +1017,7 @@
                   }
                   loadTimeline(patientName);
               } else { showToast("Error al eliminar: " + res.error, "error"); }
-          }).deletePatientHistory(id);
+          });
       });
   }
 
@@ -1127,78 +1038,61 @@
       cerrarModalWhatsapp();
   }
   
+  // --- FUNCIÓN DEL MICRÓFONO (VERSIÓN LIMPIA Y DEFINITIVA PARA GITHUB) ---
   function toggleDictation() {
      const btn = document.getElementById('btn-mic');
      const area = document.getElementById('hc-text');
-
-     // 1. SI ES CELULAR/APK: Se usa el teclado (En Android el iframe nunca deja usar la web)
+     
+     // 1. SI ES CELULAR/APK: Se usa el teclado (En Android el webview bloquea la voz)
      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
-         area.focus(); 
+         area.focus();
          showToast("En celulares, toca el ícono de micrófono 🎤 en tu teclado para dictar.", "success");
-         return; 
+         return;
      }
 
-     // 2. SI ES PC: Intentamos usar el dictado de la Web
+     // 2. SI ES PC: Como ya estamos en GitHub, Chrome NO lo bloqueará.
      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) { 
-         return showToast("Tu navegador no soporta dictado por voz.", 'error'); 
+         return showToast("Tu navegador no soporta dictado por voz.", 'error');
      }
      
      if (IS_REC) { if (REC) REC.stop(); return; }
      
      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-     REC = new SpeechRecognition(); 
+     REC = new SpeechRecognition();
      REC.lang = 'es-AR';
      REC.continuous = true;
      REC.interimResults = false;
      
      REC.onstart = function() { 
-         IS_REC = true; 
+         IS_REC = true;
          btn.innerHTML = '<i data-lucide="square" class="w-3 h-3 text-red-600 fill-current"></i> Parar'; 
          btn.classList.add('text-red-600', 'bg-red-50', 'border-red-200'); 
          btn.classList.remove('text-gray-600'); 
          lucide.createIcons(); 
          showToast("Escuchando... puedes hablar.", "success"); 
      };
-     
      REC.onend = function() { 
-         IS_REC = false; 
+         IS_REC = false;
          btn.innerHTML = '<i data-lucide="mic" class="w-3 h-3"></i> Dictar'; 
          btn.classList.remove('text-red-600', 'bg-red-50', 'border-red-200'); 
          btn.classList.add('text-gray-600'); 
          lucide.createIcons(); 
      };
-     
      REC.onresult = function(e) { 
          let newText = '';
          for (let i = e.resultIndex; i < e.results.length; ++i) { 
              if (e.results[i].isFinal) { newText += e.results[i][0].transcript; } 
          }
          if (newText) { 
-             newText = newText.trim(); 
+             newText = newText.trim();
              newText = newText.charAt(0).toUpperCase() + newText.slice(1); 
-             area.value += (area.value ? ' ' : '') + newText; 
+             area.value += (area.value ? ' ' : '') + newText;
          }
      };
-     
      REC.onerror = function(event) { 
-         // AQUI OCURRE LA MAGIA PARA SALTAR EL BLOQUEO DE CHROME
-         if (event.error === 'not-allowed') {
-             
-             if (window.top !== window.self) {
-                 // Si detecta que está encerrado en el iframe de Google, ofrece escapar
-                 abrirModalConfirm("Chrome bloqueó el micrófono por seguridad. Para usarlo, debemos abrir la app en 'Modo Directo' (fuera de la caja de Google). ¿Recargar ahora?", function() {
-                     // Esto rompe el marco y recarga la URL real desnuda
-                     window.open(document.location.href, "_top");
-                 });
-             } else {
-                 // Si ya está fuera del marco pero sigue bloqueado
-                 showToast("Haz clic en el candado 🔒 junto a la URL arriba a la izquierda y permite el Micrófono.", 'error');
-             }
-
-         } else if (event.error !== 'no-speech') { 
-             showToast("Error de micrófono: " + event.error, 'error'); 
+         if (event.error !== 'no-speech') { 
+             showToast("Error de micrófono: " + event.error, 'error');
          } 
-         
          IS_REC = false;
          btn.innerHTML = '<i data-lucide="mic" class="w-3 h-3"></i> Dictar'; 
          btn.classList.remove('text-red-600', 'bg-red-50', 'border-red-200'); 
@@ -1229,7 +1123,6 @@
       html += '<div class="firma-box"><strong>' + pNombre + '</strong><br><span style="font-size:11px;color:#666;">' + pTitulo + '</span></div></div>';
       html += '</body></html>';
       
-      // Crear un iframe invisible para imprimir sin abrir pestañas nuevas (Compatible con Android)
       let printFrame = document.getElementById('print-iframe');
       if (!printFrame) {
           printFrame = document.createElement('iframe');
@@ -1244,18 +1137,17 @@
           document.body.appendChild(printFrame);
       }
       
-      // Escribir el HTML en el iframe
       printFrame.contentDocument.open();
       printFrame.contentDocument.write(html);
       printFrame.contentDocument.close();
       
-      // Enfocar e imprimir tras un breve retardo para asegurar que las imágenes carguen
       setTimeout(function() {
           printFrame.contentWindow.focus();
           printFrame.contentWindow.print();
       }, 500);
   }
   
+  // --- REEMPLAZO EN GESTIÓN DE ARCHIVOS ---
   function openPatientFolder(id, name) {
     document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
     document.getElementById('view-browser').classList.remove('hidden');
@@ -1289,7 +1181,8 @@
     NAV_HISTORY = [];
     IS_LIST_VIEW = false;
     resetBrowser();
-    google.script.run.withSuccessHandler(onFilesFetched).getSubfolderContents(parentId, folderName);
+    
+    llamarBackend('getSubfolderContents', [parentId, folderName], onFilesFetched);
   }
 
   function goBackBrowser() {
@@ -1301,7 +1194,7 @@
 
   function fetchFiles(id) {
     resetBrowser();
-    google.script.run.withSuccessHandler(onFilesFetched).getFolderContents(id);
+    llamarBackend('getFolderContents', [id], onFilesFetched);
   }
 
   function onFilesFetched(res) {
@@ -1316,7 +1209,7 @@
   function resetBrowser() {
     CURRENT_FILES = []; 
     const container = document.getElementById('browser-container');
-    const msg = document.getElementById('browser-msg'); 
+    const msg = document.getElementById('browser-msg');
     container.innerHTML = ''; 
     container.className = ''; 
     msg.innerHTML = '<div class="loader mb-3"></div><p class="text-xs">Buscando archivos...</p>'; 
@@ -1340,7 +1233,7 @@
   function renderFilesList(files) {
     const container = document.getElementById('browser-container'); 
     container.innerHTML = ''; 
-    container.className = 'flex flex-col gap-2'; 
+    container.className = 'flex flex-col gap-2';
     files.forEach(function(f, index) {
       let iconColor = 'text-gray-400'; let icon = 'file'; let itemClass = 'hover:bg-slate-50'; let isFolder = f.mime.includes('folder');
       if(f.mime.includes('pdf')) { iconColor = 'text-red-500'; } else if(f.mime.includes('spreadsheet')) { iconColor = 'text-green-600'; } else if(f.mime.includes('image')) { iconColor = 'text-[#008395]'; icon = 'image'; } else if(isFolder) { iconColor = 'text-yellow-500'; icon = 'folder'; itemClass = 'hover:bg-slate-100 cursor-pointer'; }
@@ -1354,7 +1247,7 @@
   }
 
   function renderFilesGrid(files) {
-    const container = document.getElementById('browser-container'); 
+    const container = document.getElementById('browser-container');
     container.innerHTML = ''; 
     container.className = 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3';
     files.forEach(function(f, index) {
@@ -1369,21 +1262,24 @@
     lucide.createIcons();
   } 
 
+  // --- REEMPLAZO EN SINCRONIZACIÓN ---
   function runSync() {
-    const btn = document.getElementById('admin-sync-btn'); 
+    const btn = document.getElementById('admin-sync-btn');
     const prev = btn.innerHTML;
     btn.innerHTML = '<div class="loader w-3 h-3 border-2 border-white border-t-transparent mr-2"></div> Sync...'; 
     btn.disabled = true;
-    google.script.run.withSuccessHandler(function(res) { 
+    
+    llamarBackend('sincronizarCarpetasDrive', [], function(res) { 
       showToast(res.message, 'success'); 
       btn.innerHTML = prev; 
       btn.disabled = false; 
-      google.script.run.withSuccessHandler(initApp).getAppData(USER_EMAIL_GLOBAL); 
-    }).sincronizarCarpetasDrive();
+      // Vuelve a pedir los datos frescos
+      llamarBackend('getAppData', [USER_EMAIL_GLOBAL], initApp, showError);
+    });
   }
 </script>
-
   </body>
 
 </html>
+
 
