@@ -355,7 +355,7 @@
                     <button onclick="openPatientFilesFromHC()" class="bg-white text-[#008395] border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-50 flex items-center gap-2 transition-colors" title="Abrir Archivos">
                         <i data-lucide="folder-open" class="w-4 h-4"></i> <span class="hidden md:inline">Archivos</span>
                     </button>
-                    <button onclick="saveHCPdf()" id="btn-save-pdf" class="bg-[#008395] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-[#006064] flex items-center gap-2 transition-colors shadow-sm" title="Guardar PDF en Drive">
+                    <button onclick="saveHCPdf()" id="btn-save-pdf" class="bg-[#008395] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-[#006064] flex items-center gap-2 transition-colors shadow-sm" title="Guardar PDF>
                         <i data-lucide="file-down" class="w-4 h-4"></i> <span class="hidden md:inline">Guardar PDF</span>
                     </button>
                  </div>
@@ -1173,8 +1173,7 @@
       btn.innerHTML = '<div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div> Guardando...';
       btn.disabled = true;
 
-      // TRUCO PARA GOOGLE: Usar el formato "thumbnail" evita que el creador de PDF bloquee la imagen
-      const logoUrl = "https://drive.google.com/thumbnail?id=1FoZSCJcHv42_P8kw4IlHL_upJdIwZ_Yl&sz=w500";
+      const logoUrl = "https://lh3.googleusercontent.com/d/1FoZSCJcHv42_P8kw4IlHL_upJdIwZ_Yl";
 
       // FORZAMOS EL TAMAÑO 10px EN CADA ETIQUETA
       let html = '<html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;font-size:10px;color:#333;">';
@@ -1209,7 +1208,7 @@
       llamarBackend('guardarHCPdf', [paciente, idDrive, html], function(res) {
           btn.innerHTML = oldHtml;
           btn.disabled = false;
-          showToast("PDF guardado con éxito en Drive.", "success");
+          showToast("PDF guardado con éxito.", "success");
       }, function(err) {
           btn.innerHTML = oldHtml;
           btn.disabled = false;
@@ -1350,6 +1349,7 @@
   </body>
 
 </html>
+
 
 
 
