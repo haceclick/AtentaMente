@@ -1168,50 +1168,44 @@
       const pTitulo = CACHE_DATA.currentUserInfo.titulo;
       const pFirmaUrl = CACHE_DATA.firmaUrl;
 
-      // Cambiamos el botón a estado de carga
       const btn = document.getElementById('btn-save-pdf');
       const oldHtml = btn.innerHTML;
       btn.innerHTML = '<div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div> Guardando...';
       btn.disabled = true;
 
-      // NUEVO: URL oficial de tu logo usando el ID proporcionado
-      const logoUrl = "https://drive.google.com/uc?id=1FoZSCJcHv42_P8kw4IlHL_upJdIwZ_Yl";
+      // TRUCO PARA GOOGLE: Usar el formato "thumbnail" evita que el creador de PDF bloquee la imagen
+      const logoUrl = "https://drive.google.com/thumbnail?id=1FoZSCJcHv42_P8kw4IlHL_upJdIwZ_Yl&sz=w500";
 
-      // NUEVO DISEÑO: Letras más chicas (10px base), interlineado mejorado y logo ajustado
+      // FORZAMOS EL TAMAÑO 10px EN CADA ETIQUETA
       let html = '<html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;font-size:10px;color:#333;">';
       
-      // Cabecera
       html += '<table width="100%" style="border-bottom:2px solid #008395;margin-bottom:15px;padding-bottom:10px;"><tr>';
-      html += '<td><h1 style="margin:0;font-size:20px;color:#008395;">Historia Clínica</h1><p style="margin:4px 0 0;font-size:9px;color:#666;">Fecha de emisión: ' + new Date().toLocaleDateString('es-AR') + '</p></td>';
-      html += '<td align="right"><img src="' + logoUrl + '" style="height:55px;object-fit:contain;"></td>';
+      html += '<td><h1 style="margin:0;font-size:18px;color:#008395;">Historia Clínica</h1><p style="margin:4px 0 0;font-size:9px;color:#666;">Fecha de emisión: ' + new Date().toLocaleDateString('es-AR') + '</p></td>';
+      html += '<td align="right"><img src="' + logoUrl + '" style="height:45px;"></td>';
       html += '</tr></table>';
       
-      // Datos del paciente (Más compactos)
-      html += '<table width="100%" cellpadding="6" style="margin-bottom:15px; text-align:left;">';
-      html += '<tr><td style="background:#f8f9fa;border-left:3px solid #008395;width:50%;"><b>PACIENTE:</b><br><span style="font-size:12px;">' + paciente + '</span></td><td style="background:#f8f9fa;border-left:3px solid #008395;width:50%;"><b>N° AFILIADO:</b><br><span style="font-size:12px;">' + afiliado + '</span></td></tr>';
-      html += '<tr><td style="background:#f8f9fa;border-left:3px solid #008395;"><b>DNI:</b><br><span style="font-size:12px;">' + dni + '</span></td><td style="background:#f8f9fa;border-left:3px solid #008395;"><b>DIAGNÓSTICO:</b><br><span style="font-size:12px;">' + dx + '</span></td></tr>';
+      html += '<table width="100%" cellpadding="4" style="margin-bottom:15px; text-align:left; font-size:10px;">';
+      html += '<tr><td style="background:#f8f9fa;border-left:3px solid #008395;width:50%;font-size:10px;"><b>PACIENTE:</b><br><span style="font-size:11px;">' + paciente + '</span></td><td style="background:#f8f9fa;border-left:3px solid #008395;width:50%;font-size:10px;"><b>N° AFILIADO:</b><br><span style="font-size:11px;">' + afiliado + '</span></td></tr>';
+      html += '<tr><td style="background:#f8f9fa;border-left:3px solid #008395;font-size:10px;"><b>DNI:</b><br><span style="font-size:11px;">' + dni + '</span></td><td style="background:#f8f9fa;border-left:3px solid #008395;font-size:10px;"><b>DIAGNÓSTICO:</b><br><span style="font-size:11px;">' + dx + '</span></td></tr>';
       html += '</table>';
       
-      // Tabla de Evoluciones (Letra tamaño 10, más espacio para texto)
       html += '<table width="100%" style="border-collapse:collapse;margin-top:10px;font-size:10px;" border="1" bordercolor="#e0e0e0" cellpadding="6">';
-      html += '<tr style="background:#008395;color:white;font-weight:bold;text-align:left;"><th width="12%">Fecha</th><th>Evolución</th><th width="22%">Profesional</th></tr>';
+      html += '<tr style="background:#008395;color:white;font-weight:bold;text-align:left;font-size:10px;"><th width="15%">Fecha</th><th>Evolución</th><th width="20%">Profesional</th></tr>';
       
       if(CURRENT_HC_HISTORIAL.length === 0) {
-          html += '<tr><td colspan="3" align="center" style="color:#999;padding:15px;">Sin registros</td></tr>';
+          html += '<tr><td colspan="3" align="center" style="color:#999;font-size:10px;">Sin registros</td></tr>';
       } else {
           CURRENT_HC_HISTORIAL.forEach(function(h) {
-              html += '<tr><td valign="top"><b>' + h.fecha + '</b></td><td valign="top" style="white-space:pre-wrap;line-height:1.4;">' + h.texto + '</td><td valign="top" style="color:#555;">' + h.profesional + '</td></tr>';
+              html += '<tr><td valign="top" style="font-size:10px;"><b>' + h.fecha + '</b></td><td valign="top" style="white-space:pre-wrap;line-height:1.3;font-size:10px;">' + h.texto + '</td><td valign="top" style="color:#555;font-size:10px;">' + h.profesional + '</td></tr>';
           });
       }
       html += '</table>';
       
-      // Firma (Ajustada a tamaño proporcional)
-      html += '<div style="margin-top:35px;text-align:center;page-break-inside:avoid;">';
-      if(pFirmaUrl) { html += '<img src="' + pFirmaUrl + '" style="max-width:160px;max-height:80px;margin-bottom:5px;"><br>'; }
-      html += '<div style="display:inline-block;border-top:1px solid #333;padding-top:5px;min-width:200px;"><b>' + pNombre + '</b><br><span style="font-size:9px;color:#666;">' + pTitulo + '</span></div>';
+      html += '<div style="margin-top:30px;text-align:center;">';
+      if(pFirmaUrl) { html += '<img src="' + pFirmaUrl + '" style="max-height:60px;margin-bottom:5px;"><br>'; }
+      html += '<div style="display:inline-block;border-top:1px solid #333;padding-top:5px;min-width:180px;font-size:10px;"><b>' + pNombre + '</b><br><span style="font-size:9px;color:#666;">' + pTitulo + '</span></div>';
       html += '</div></body></html>';
 
-      // Llamamos a nuestro Backend
       llamarBackend('guardarHCPdf', [paciente, idDrive, html], function(res) {
           btn.innerHTML = oldHtml;
           btn.disabled = false;
@@ -1356,6 +1350,7 @@
   </body>
 
 </html>
+
 
 
 
