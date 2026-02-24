@@ -1134,39 +1134,81 @@
       const pNombre = CACHE_DATA.currentUserInfo.nombre;
       const pTitulo = CACHE_DATA.currentUserInfo.titulo;
       const pFirmaUrl = CACHE_DATA.firmaUrl;
-      let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;margin:20px;font-size:12px;color:#333}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #008395;padding-bottom:15px;margin-bottom:20px}.title h1{margin:0;font-size:24px;color:#008395;font-weight:bold}.title p{margin:5px 0 0;font-size:11px;color:#666}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px}.info-item{background:#f8f9fa;padding:10px;border-radius:5px;border-left:3px solid #008395}.info-item .label{display:block;font-size:9px;color:#666;text-transform:uppercase;font-weight:bold;margin-bottom:3px}.info-item .val{display:block;font-size:13px;color:#333;font-weight:600}table{width:100%;border-collapse:collapse;margin-top:15px}thead{background:#008395;color:white}th{padding:10px;text-align:left;font-size:11px;font-weight:bold;text-transform:uppercase}td{padding:10px;border-bottom:1px solid #e0e0e0;font-size:11px;vertical-align:top}tbody tr:hover{background:#f8f9fa}.footer{margin-top:40px;padding-top:20px;border-top:2px solid #ddd;text-align:center}.firma-img{max-width:200px;height:auto;margin:0 auto 10px;display:block}.firma-box{display:inline-block;text-align:center;padding:15px 30px;border-top:2px solid #333;margin-top:10px}@media print{body{margin:15px}.header{page-break-after:avoid}}</style></head><body>';
-      html += '<div class="header"><div class="title"><h1>Historia Clínica</h1><p>Fecha de emisión: ' + new Date().toLocaleDateString('es-AR') + '</p></div><div><img src="https://lh3.googleusercontent.com/d/1FoZSCJcHv42_P8kw4IlHL_upJdIwZ_Yl" style="height:70px;width:auto;"></div></div>';
-      html += '<div class="info-grid"><div><div class="info-item"><span class="label">Paciente</span><span class="val">' + paciente + '</span></div><div class="info-item"><span class="label">DNI</span><span class="val">' + dni + '</span></div></div><div><div class="info-item"><span class="label">N° Afiliado</span><span class="val">' + afiliado + '</span></div><div class="info-item"><span class="label">Diagnóstico</span><span class="val">' + dx + '</span></div></div></div>';
-      html += '<table><thead><tr><th width="20%">Fecha</th><th>Evolución</th><th width="25%">Profesional</th></tr></thead><tbody>';
-      if(CURRENT_HC_HISTORIAL.length === 0) { html += '<tr><td colspan="3" style="text-align:center; padding: 20px; color:#999;">Sin registros</td></tr>'; } 
-      else { CURRENT_HC_HISTORIAL.forEach(function(h) { html += '<tr><td>' + h.fecha + '</td><td style="white-space: pre-wrap;">' + h.texto + '</td><td>' + h.profesional + '</td></tr>'; }); }
-      html += '</tbody></table>';
-      html += '<div class="footer">';
-      if(pFirmaUrl) { html += '<img src="' + pFirmaUrl + '" class="firma-img"><br>'; }
-      html += '<div class="firma-box"><strong>' + pNombre + '</strong><br><span style="font-size:11px;color:#666;">' + pTitulo + '</span></div></div>';
-      html += '</body></html>';
       
-      let printFrame = document.getElementById('print-iframe');
-      if (!printFrame) {
-          printFrame = document.createElement('iframe');
-          printFrame.id = 'print-iframe';
-          printFrame.style.position = 'fixed';
-          printFrame.style.right = '0';
-          printFrame.style.bottom = '0';
-          printFrame.style.width = '0';
-          printFrame.style.height = '0';
-          printFrame.style.border = 'none';
-          printFrame.style.zIndex = '-1000';
-          document.body.appendChild(printFrame);
+      // 1. Inyectar estilos inteligentes que solo se activan al imprimir
+      let printStyles = document.getElementById('custom-print-style');
+      if (!printStyles) {
+          printStyles = document.createElement('style');
+          printStyles.id = 'custom-print-style';
+          printStyles.innerHTML = `
+              @media screen {
+                  #print-section { display: none !important; }
+              }
+              @media print {
+                  /* Oculta toda la app web (menú, botones) para dejar la hoja limpia */
+                  body > *:not(#print-section) { display: none !important; }
+                  
+                  /* Muestra solo la hoja clínica */
+                  #print-section { 
+                      display: block !important; 
+                      position: absolute; left: 0; top: 0; width: 100%; 
+                      background: white; margin: 0; padding: 15px; 
+                      -webkit-print-color-adjust: exact !important; 
+                      print-color-adjust: exact !important; 
+                  }
+                  
+                  .pr-body { font-family: Arial, sans-serif; font-size: 12px; color: #333; }
+                  .pr-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #008395; padding-bottom: 15px; margin-bottom: 20px; }
+                  .pr-title h1 { margin: 0; font-size: 24px; color: #008395; font-weight: bold; }
+                  .pr-title p { margin: 5px 0 0; font-size: 11px; color: #666; }
+                  .pr-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+                  .pr-info-item { background: #f8f9fa; padding: 10px; border-radius: 5px; border-left: 3px solid #008395; }
+                  .pr-label { display: block; font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; }
+                  .pr-val { display: block; font-size: 13px; color: #333; font-weight: 600; }
+                  .pr-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                  .pr-thead { background: #008395; color: white; }
+                  .pr-th { padding: 10px; text-align: left; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+                  .pr-td { padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 11px; vertical-align: top; }
+                  .pr-footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #ddd; text-align: center; page-break-inside: avoid; }
+                  .pr-firma-img { max-width: 200px; height: auto; margin: 0 auto 10px; display: block; }
+                  .pr-firma-box { display: inline-block; text-align: center; padding: 15px 30px; border-top: 2px solid #333; margin-top: 10px; }
+              }
+          `;
+          document.head.appendChild(printStyles);
       }
+
+      // 2. Construir el HTML limpio (sin etiquetas body que rompan la página)
+      let html = '<div class="pr-body">';
+      html += '<div class="pr-header"><div class="pr-title"><h1>Historia Clínica</h1><p>Fecha de emisión: ' + new Date().toLocaleDateString('es-AR') + '</p></div><div><img src="https://lh3.googleusercontent.com/d/15_VzgzHnHcu0jSrnU4ddmcl65-VnQXZq" style="height:70px;width:auto;"></div></div>';
+      html += '<div class="pr-info-grid"><div><div class="pr-info-item"><span class="pr-label">Paciente</span><span class="pr-val">' + paciente + '</span></div><div class="pr-info-item"><span class="pr-label">DNI</span><span class="pr-val">' + dni + '</span></div></div><div><div class="pr-info-item"><span class="pr-label">N° Afiliado</span><span class="pr-val">' + afiliado + '</span></div><div class="pr-info-item"><span class="pr-label">Diagnóstico</span><span class="pr-val">' + dx + '</span></div></div></div>';
+      html += '<table class="pr-table"><thead class="pr-thead"><tr><th class="pr-th" width="20%">Fecha</th><th class="pr-th">Evolución</th><th class="pr-th" width="25%">Profesional</th></tr></thead><tbody>';
       
-      printFrame.contentDocument.open();
-      printFrame.contentDocument.write(html);
-      printFrame.contentDocument.close();
-      
+      if(CURRENT_HC_HISTORIAL.length === 0) { 
+          html += '<tr><td class="pr-td" colspan="3" style="text-align:center; padding: 20px; color:#999;">Sin registros</td></tr>'; 
+      } else { 
+          CURRENT_HC_HISTORIAL.forEach(function(h) { 
+              html += '<tr><td class="pr-td">' + h.fecha + '</td><td class="pr-td" style="white-space: pre-wrap;">' + h.texto + '</td><td class="pr-td">' + h.profesional + '</td></tr>'; 
+          }); 
+      }
+      html += '</tbody></table>';
+      html += '<div class="pr-footer">';
+      if(pFirmaUrl) { html += '<img src="' + pFirmaUrl + '" class="pr-firma-img"><br>'; }
+      html += '<div class="pr-firma-box"><strong>' + pNombre + '</strong><br><span style="font-size:11px;color:#666;">' + pTitulo + '</span></div></div>';
+      html += '</div>';
+
+      // 3. Crear el lienzo de impresión en la pantalla principal (invisible hasta que toques imprimir)
+      let printSection = document.getElementById('print-section');
+      if (!printSection) {
+          printSection = document.createElement('div');
+          printSection.id = 'print-section';
+          document.body.appendChild(printSection);
+      }
+      printSection.innerHTML = html;
+
+      // 4. Disparar la impresión a nivel principal (el celular ya no lo bloqueará)
       setTimeout(function() {
-          printFrame.contentWindow.focus();
-          printFrame.contentWindow.print();
+          window.focus();
+          window.print();
       }, 500);
   }
   
@@ -1304,6 +1346,7 @@
   </body>
 
 </html>
+
 
 
 
