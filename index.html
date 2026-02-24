@@ -352,8 +352,11 @@
                  </div>
                  
                  <div class="flex gap-2">
-                    <button onclick="printHC()" class="bg-white text-gray-600 border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-50 flex items-center gap-2 transition-colors" title="Imprimir">
-                        <i data-lucide="printer" class="w-4 h-4"></i> <span class="hidden md:inline">Imprimir</span>
+                    <button onclick="openPatientFilesFromHC()" class="bg-white text-[#008395] border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-50 flex items-center gap-2 transition-colors" title="Abrir Archivos">
+                        <i data-lucide="folder-open" class="w-4 h-4"></i> <span class="hidden md:inline">Archivos</span>
+                    </button>
+                    <button onclick="saveHCPdf()" id="btn-save-pdf" class="bg-[#008395] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-[#006064] flex items-center gap-2 transition-colors shadow-sm" title="Guardar PDF en Drive">
+                        <i data-lucide="file-down" class="w-4 h-4"></i> <span class="hidden md:inline">Guardar PDF</span>
                     </button>
                  </div>
             </div> 
@@ -894,7 +897,10 @@
   }
 
   function openPatientFolderFromIndex(index) { const p = CACHE_DATA.pacientes[index]; if(p) openPatientFolder(p.idDrive, p.paciente); }
-  function openHCFromIndex(index) { const p = CACHE_DATA.pacientes[index]; if(p) openHC(p.paciente, p.dni, p.afiliado, p.dx, p.telefono, p.prestador, p.prestadorTitulo); }
+  function openHCFromIndex(index) { 
+      const p = CACHE_DATA.pacientes[index]; 
+      if(p) openHC(p.paciente, p.dni, p.afiliado, p.dx, p.telefono, p.prestador, p.prestadorTitulo, p.idDrive); 
+  }
   function navigateFolderFromIndex(index) { const f = CURRENT_FILES[index]; if(f && f.mime.includes('folder')) { if(CURRENT_FOLDER_ID) { NAV_HISTORY.push(CURRENT_FOLDER_ID); } CURRENT_FOLDER_ID = f.id; fetchFiles(f.id); } }
   
   function startEditFromIndex(index) {
@@ -909,7 +915,7 @@
       document.querySelector('#view-hc').scrollIntoView({ behavior: 'smooth' });
   }
 
-  function openHC(pacienteName, dni, afiliado, dx, telefono, prestador, titulo) {
+  function openHC(pacienteName, dni, afiliado, dx, telefono, prestador, titulo, idDrive) {
      document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
      document.getElementById('view-hc').classList.remove('hidden');
      document.getElementById('hc-patient-name').innerText = pacienteName;
@@ -919,6 +925,17 @@
      document.getElementById('hc-data-phone').value = telefono;
      document.getElementById('hc-data-prestador').value = prestador;
      document.getElementById('hc-data-titulo').value = titulo;
+     
+     // NUEVO: Guardamos el ID de Drive
+     let driveInput = document.getElementById('hc-data-iddrive');
+     if(!driveInput) {
+         driveInput = document.createElement('input');
+         driveInput.type = 'hidden';
+         driveInput.id = 'hc-data-iddrive';
+         document.getElementById('hc-patient-name').parentElement.appendChild(driveInput);
+     }
+     driveInput.value = idDrive || '';
+
      document.getElementById('hc-text').value = '';
      const editInput = document.getElementById('hc-edit-id');
      if(editInput) editInput.value = '';
@@ -1126,92 +1143,77 @@
      REC.start();
   }
 
-  function printHC() {
+  function openPatientFilesFromHC() {
+      const idDrive = document.getElementById('hc-data-iddrive').value;
+      const name = document.getElementById('hc-patient-name').innerText;
+      if(!idDrive || idDrive.length < 5) {
+          showToast("Este paciente no tiene una carpeta de Drive vinculada aún.", "error");
+          return;
+      }
+      openPatientFolder(idDrive, name);
+  }
+
+  function saveHCPdf() {
       const paciente = document.getElementById('hc-patient-name').innerText;
+      const idDrive = document.getElementById('hc-data-iddrive').value;
+      
+      if(!idDrive || idDrive.length < 5) {
+          return showToast("Error: El paciente no tiene carpeta vinculada en Drive.", "error");
+      }
+
       const dni = document.getElementById('hc-data-dni').value;
       const afiliado = document.getElementById('hc-data-afiliado').value;
       const dx = document.getElementById('hc-data-dx').value;
       const pNombre = CACHE_DATA.currentUserInfo.nombre;
       const pTitulo = CACHE_DATA.currentUserInfo.titulo;
       const pFirmaUrl = CACHE_DATA.firmaUrl;
+
+      // Cambiamos el botón a estado de carga
+      const btn = document.getElementById('btn-save-pdf');
+      const oldHtml = btn.innerHTML;
+      btn.innerHTML = '<div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div> Guardando...';
+      btn.disabled = true;
+
+      // Armamos un HTML usando Tablas (Es el único formato que el conversor PDF de Google respeta a la perfección)
+      let html = '<html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;font-size:12px;color:#333;">';
+      html += '<table width="100%" style="border-bottom:3px solid #008395;margin-bottom:20px;"><tr>';
+      html += '<td><h1 style="margin:0;font-size:24px;color:#008395;">Historia Clínica</h1><p style="margin:5px 0 0;font-size:11px;color:#666;">Fecha de emisión: ' + new Date().toLocaleDateString('es-AR') + '</p></td>';
+      html += '<td align="right"><img src="https://lh3.googleusercontent.com/d/15_VzgzHnHcu0jSrnU4ddmcl65-VnQXZq" style="height:70px;"></td>';
+      html += '</tr></table>';
       
-      // 1. Inyectar estilos inteligentes que solo se activan al imprimir
-      let printStyles = document.getElementById('custom-print-style');
-      if (!printStyles) {
-          printStyles = document.createElement('style');
-          printStyles.id = 'custom-print-style';
-          printStyles.innerHTML = `
-              @media screen {
-                  #print-section { display: none !important; }
-              }
-              @media print {
-                  /* Oculta toda la app web (menú, botones) para dejar la hoja limpia */
-                  body > *:not(#print-section) { display: none !important; }
-                  
-                  /* Muestra solo la hoja clínica */
-                  #print-section { 
-                      display: block !important; 
-                      position: absolute; left: 0; top: 0; width: 100%; 
-                      background: white; margin: 0; padding: 15px; 
-                      -webkit-print-color-adjust: exact !important; 
-                      print-color-adjust: exact !important; 
-                  }
-                  
-                  .pr-body { font-family: Arial, sans-serif; font-size: 12px; color: #333; }
-                  .pr-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #008395; padding-bottom: 15px; margin-bottom: 20px; }
-                  .pr-title h1 { margin: 0; font-size: 24px; color: #008395; font-weight: bold; }
-                  .pr-title p { margin: 5px 0 0; font-size: 11px; color: #666; }
-                  .pr-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-                  .pr-info-item { background: #f8f9fa; padding: 10px; border-radius: 5px; border-left: 3px solid #008395; }
-                  .pr-label { display: block; font-size: 9px; color: #666; text-transform: uppercase; font-weight: bold; margin-bottom: 3px; }
-                  .pr-val { display: block; font-size: 13px; color: #333; font-weight: 600; }
-                  .pr-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                  .pr-thead { background: #008395; color: white; }
-                  .pr-th { padding: 10px; text-align: left; font-size: 11px; font-weight: bold; text-transform: uppercase; }
-                  .pr-td { padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 11px; vertical-align: top; }
-                  .pr-footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #ddd; text-align: center; page-break-inside: avoid; }
-                  .pr-firma-img { max-width: 200px; height: auto; margin: 0 auto 10px; display: block; }
-                  .pr-firma-box { display: inline-block; text-align: center; padding: 15px 30px; border-top: 2px solid #333; margin-top: 10px; }
-              }
-          `;
-          document.head.appendChild(printStyles);
-      }
-
-      // 2. Construir el HTML limpio (sin etiquetas body que rompan la página)
-      let html = '<div class="pr-body">';
-      html += '<div class="pr-header"><div class="pr-title"><h1>Historia Clínica</h1><p>Fecha de emisión: ' + new Date().toLocaleDateString('es-AR') + '</p></div><div><img src="https://lh3.googleusercontent.com/d/1FoZSCJcHv42_P8kw4IlHL_upJdIwZ_Yl" style="height:70px;width:auto;"></div></div>';
-      html += '<div class="pr-info-grid"><div><div class="pr-info-item"><span class="pr-label">Paciente</span><span class="pr-val">' + paciente + '</span></div><div class="pr-info-item"><span class="pr-label">DNI</span><span class="pr-val">' + dni + '</span></div></div><div><div class="pr-info-item"><span class="pr-label">N° Afiliado</span><span class="pr-val">' + afiliado + '</span></div><div class="pr-info-item"><span class="pr-label">Diagnóstico</span><span class="pr-val">' + dx + '</span></div></div></div>';
-      html += '<table class="pr-table"><thead class="pr-thead"><tr><th class="pr-th" width="20%">Fecha</th><th class="pr-th">Evolución</th><th class="pr-th" width="25%">Profesional</th></tr></thead><tbody>';
+      html += '<table width="100%" cellpadding="10" style="margin-bottom:20px; text-align:left;">';
+      html += '<tr><td style="background:#f8f9fa;border-left:3px solid #008395;"><b>PACIENTE:</b><br><span style="font-size:14px;">' + paciente + '</span></td><td style="background:#f8f9fa;border-left:3px solid #008395;"><b>N° AFILIADO:</b><br><span style="font-size:14px;">' + afiliado + '</span></td></tr>';
+      html += '<tr><td style="background:#f8f9fa;border-left:3px solid #008395;"><b>DNI:</b><br><span style="font-size:14px;">' + dni + '</span></td><td style="background:#f8f9fa;border-left:3px solid #008395;"><b>DIAGNÓSTICO:</b><br><span style="font-size:14px;">' + dx + '</span></td></tr>';
+      html += '</table>';
       
-      if(CURRENT_HC_HISTORIAL.length === 0) { 
-          html += '<tr><td class="pr-td" colspan="3" style="text-align:center; padding: 20px; color:#999;">Sin registros</td></tr>'; 
-      } else { 
-          CURRENT_HC_HISTORIAL.forEach(function(h) { 
-              html += '<tr><td class="pr-td">' + h.fecha + '</td><td class="pr-td" style="white-space: pre-wrap;">' + h.texto + '</td><td class="pr-td">' + h.profesional + '</td></tr>'; 
-          }); 
+      html += '<table width="100%" style="border-collapse:collapse;margin-top:15px;" border="1" bordercolor="#e0e0e0" cellpadding="8">';
+      html += '<tr style="background:#008395;color:white;font-weight:bold;text-align:left;"><th>Fecha</th><th>Evolución</th><th>Profesional</th></tr>';
+      
+      if(CURRENT_HC_HISTORIAL.length === 0) {
+          html += '<tr><td colspan="3" align="center" style="color:#999;">Sin registros</td></tr>';
+      } else {
+          CURRENT_HC_HISTORIAL.forEach(function(h) {
+              html += '<tr><td width="15%" valign="top">' + h.fecha + '</td><td valign="top" style="white-space:pre-wrap;">' + h.texto + '</td><td width="25%" valign="top">' + h.profesional + '</td></tr>';
+          });
       }
-      html += '</tbody></table>';
-      html += '<div class="pr-footer">';
-      if(pFirmaUrl) { html += '<img src="' + pFirmaUrl + '" class="pr-firma-img"><br>'; }
-      html += '<div class="pr-firma-box"><strong>' + pNombre + '</strong><br><span style="font-size:11px;color:#666;">' + pTitulo + '</span></div></div>';
-      html += '</div>';
+      html += '</table>';
+      
+      html += '<div style="margin-top:40px;text-align:center;">';
+      if(pFirmaUrl) { html += '<img src="' + pFirmaUrl + '" style="max-width:200px;margin-bottom:10px;"><br>'; }
+      html += '<div style="display:inline-block;border-top:2px solid #333;padding-top:10px;"><b>' + pNombre + '</b><br><span style="font-size:11px;color:#666;">' + pTitulo + '</span></div>';
+      html += '</div></body></html>';
 
-      // 3. Crear el lienzo de impresión en la pantalla principal (invisible hasta que toques imprimir)
-      let printSection = document.getElementById('print-section');
-      if (!printSection) {
-          printSection = document.createElement('div');
-          printSection.id = 'print-section';
-          document.body.appendChild(printSection);
-      }
-      printSection.innerHTML = html;
-
-      // 4. Disparar la impresión a nivel principal (el celular ya no lo bloqueará)
-      setTimeout(function() {
-          window.focus();
-          window.print();
-      }, 500);
+      // Llamamos a nuestro Backend
+      llamarBackend('guardarHCPdf', [paciente, idDrive, html], function(res) {
+          btn.innerHTML = oldHtml;
+          btn.disabled = false;
+          showToast("PDF guardado con éxito en Drive.", "success");
+      }, function(err) {
+          btn.innerHTML = oldHtml;
+          btn.disabled = false;
+          showToast("Error al guardar: " + err.message, "error");
+      });
   }
-  
   // --- REEMPLAZO EN GESTIÓN DE ARCHIVOS ---
   function openPatientFolder(id, name) {
     document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
@@ -1346,6 +1348,7 @@
   </body>
 
 </html>
+
 
 
 
