@@ -1173,14 +1173,14 @@
       btn.innerHTML = '<div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div> Guardando...';
       btn.disabled = true;
 
-      const logoUrl = "https://lh3.googleusercontent.com/d/1FoZSCJcHv42_P8kw4IlHL_upJdIwZ_Yl";
-
-      // FORZAMOS EL TAMAÑO 10px EN CADA ETIQUETA
+      // SOLUCIÓN AL LOGO: 'export=download' trae la imagen original completa sin recortarla
+      const logoUrl = "https://postimg.cc/t7cw8nm0";
       let html = '<html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;font-size:10px;color:#333;">';
       
       html += '<table width="100%" style="border-bottom:2px solid #008395;margin-bottom:15px;padding-bottom:10px;"><tr>';
-      html += '<td><h1 style="margin:0;font-size:18px;color:#008395;">Historia Clínica</h1><p style="margin:4px 0 0;font-size:9px;color:#666;">Fecha de emisión: ' + new Date().toLocaleDateString('es-AR') + '</p></td>';
-      html += '<td align="right"><img src="' + logoUrl + '" style="height:45px;"></td>';
+      html += '<td width="65%"><h1 style="margin:0;font-size:18px;color:#008395;">Historia Clínica</h1><p style="margin:4px 0 0;font-size:9px;color:#666;">Fecha de emisión: ' + new Date().toLocaleDateString('es-AR') + '</p></td>';
+      // Asignamos el ancho directamente en HTML clásico (width="140") para que el PDF no lo deforme
+      html += '<td width="35%" align="right"><img src="' + logoUrl + '" width="140" style="display:block;"></td>';
       html += '</tr></table>';
       
       html += '<table width="100%" cellpadding="4" style="margin-bottom:15px; text-align:left; font-size:10px;">';
@@ -1201,14 +1201,14 @@
       html += '</table>';
       
       html += '<div style="margin-top:30px;text-align:center;">';
-      if(pFirmaUrl) { html += '<img src="' + pFirmaUrl + '" style="max-height:60px;margin-bottom:5px;"><br>'; }
+      if(pFirmaUrl) { html += '<img src="' + pFirmaUrl + '" height="60" style="margin-bottom:5px;"><br>'; }
       html += '<div style="display:inline-block;border-top:1px solid #333;padding-top:5px;min-width:180px;font-size:10px;"><b>' + pNombre + '</b><br><span style="font-size:9px;color:#666;">' + pTitulo + '</span></div>';
       html += '</div></body></html>';
 
       llamarBackend('guardarHCPdf', [paciente, idDrive, html], function(res) {
           btn.innerHTML = oldHtml;
           btn.disabled = false;
-          showToast("PDF guardado con éxito.", "success");
+          showToast("PDF guardado con éxito en Drive.", "success");
       }, function(err) {
           btn.innerHTML = oldHtml;
           btn.disabled = false;
@@ -1349,6 +1349,7 @@
   </body>
 
 </html>
+
 
 
 
