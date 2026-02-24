@@ -1145,6 +1145,8 @@
 
   function openPatientFilesFromHC() {
       const idDrive = document.getElementById('hc-data-iddrive').value;
+      const patientName = document.getElementById('hc-patient-name').innerText;
+      
       if(!idDrive || idDrive.length < 5) {
           return showToast("Este paciente no tiene una carpeta de Drive vinculada aún.", "error");
       }
@@ -1154,14 +1156,14 @@
       btn.innerHTML = '<div class="loader w-3 h-3 border-2 border-[#008395] border-t-transparent"></div>';
       btn.disabled = true;
 
-      // NUEVO: Le pedimos al servidor que busque específicamente la subcarpeta "Historia_Clinica"
+      // Le pedimos al servidor que busque la subcarpeta "Historia_Clinica"
       llamarBackend('getSubfolderContents', [idDrive, 'Historia_Clinica'], function(res) {
           btn.innerHTML = oldHtml;
           btn.disabled = false;
           
           if(res && !res.error && res.id) {
-              // Si la encuentra, nos lleva directo a la subcarpeta
-              window.open('https://drive.google.com/drive/folders/' + res.id, '_blank');
+              // SOLUCIÓN: Usamos tu gestor interno pasándole el ID exacto de la subcarpeta
+              openPatientFolder(res.id, patientName + " (Historia Clínica)");
           } else {
               showToast("La carpeta no existe. Guarda un PDF primero para crearla.", "warning");
           }
@@ -1366,6 +1368,7 @@
   </body>
 
 </html>
+
 
 
 
