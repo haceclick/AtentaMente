@@ -327,7 +327,15 @@
                <button onclick="goBackBrowser()" id="btn-back-browser" class="bg-white border border-gray-200 p-1.5 rounded-lg text-gray-500 hover:text-[#008395] hover:border-[#008395] transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
                <h2 id="browser-title" class="text-xl font-bold text-gray-700">Archivos</h2>
              </div>
-             <button onclick="toggleFileView()" class="bg-white border border-gray-200 p-1.5 rounded-lg text-gray-500 hover:text-[#008395] transition-colors flex items-center gap-2"><span class="text-[10px] font-bold uppercase hidden md:inline">Vista</span><i id="icon-view-mode" data-lucide="layout-grid" class="w-4 h-4"></i></button>
+             
+             <div class="flex items-center gap-2">
+                 <button id="btn-upload-file" onclick="document.getElementById('file-upload-input').click()" class="hidden bg-[#008395] text-white p-1.5 px-3 rounded-lg text-[10px] font-bold hover:bg-[#006064] transition-colors flex items-center gap-2 shadow-sm">
+                     <i data-lucide="upload" class="w-4 h-4"></i> <span class="hidden md:inline">Subir Archivo</span>
+                 </button>
+                 <input type="file" id="file-upload-input" class="hidden" onchange="handleFileUpload(event)">
+                 
+                 <button onclick="toggleFileView()" class="bg-white border border-gray-200 p-1.5 rounded-lg text-gray-500 hover:text-[#008395] transition-colors flex items-center gap-2"><span class="text-[10px] font-bold uppercase hidden md:inline">Vista</span><i id="icon-view-mode" data-lucide="layout-grid" class="w-4 h-4"></i></button>
+             </div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-5 min-h-[400px] shadow-sm">
              <div id="browser-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
@@ -419,7 +427,8 @@
   var EXIT_VIEW = 'dashboard';
   var CURRENT_FOLDER_ID = null;
   var SHOW_ONLY_PENDING = false;
-
+  var IS_DOCUMENTACION_PERSONAL = false;
+  
   // ESCUDO DE SEGURIDAD: APAGAR CONSOLA
   if (typeof console !== "undefined") {
       console.log = function() {};
@@ -1322,6 +1331,15 @@
   function onFilesFetched(res) {
     if(res.error) { showBrowserError(res.error); return; }
       if(res.id) { CURRENT_FOLDER_ID = res.id; }
+      
+      // DETECCIÓN INTELIGENTE: ¿Estamos en Documentacion_Personal?
+      IS_DOCUMENTACION_PERSONAL = (res.name === 'Documentacion_Personal');
+      const btnUpload = document.getElementById('btn-upload-file');
+      if(btnUpload) {
+          if(IS_DOCUMENTACION_PERSONAL) btnUpload.classList.remove('hidden');
+          else btnUpload.classList.add('hidden');
+      }
+
       CURRENT_FILES = res.files || [];
       if(CURRENT_FILES.length === 0) { showBrowserError('Carpeta vacía'); return; }
       document.getElementById('browser-msg').classList.add('hidden');
@@ -1362,7 +1380,13 @@
       if(isFolder) {
         container.innerHTML += '<div onclick="navigateFolderFromIndex(' + index + ')" class="flex items-center p-2.5 bg-white border border-gray-200 rounded-lg transition-colors group ' + itemClass + '"><div class="' + iconColor + ' mr-3"><i data-lucide="' + icon + '" class="w-4 h-4"></i></div><div class="flex-1 min-w-0"><p class="text-xs font-bold text-gray-700 truncate">' + f.name + '</p><p class="text-[9px] text-gray-400">' + f.date + ' • ' + f.size + '</p></div><div class="text-gray-300 group-hover:text-[#008395]"><i data-lucide="chevron-right" class="w-4 h-4"></i></div></div>';
       } else {
-        container.innerHTML += '<a href="' + f.url + '" target="_blank" class="flex items-center p-2.5 bg-white border border-gray-200 rounded-lg transition-colors group ' + itemClass + '"><div class="' + iconColor + ' mr-3"><i data-lucide="' + icon + '" class="w-4 h-4"></i></div><div class="flex-1 min-w-0"><p class="text-xs font-bold text-gray-700 truncate">' + f.name + '</p><p class="text-[9px] text-gray-400">' + f.date + ' • ' + f.size + '</p></div><div class="text-gray-300 group-hover:text-[#008395]"><i data-lucide="external-link" class="w-3 h-3"></i></div></a>';
+        // --- INYECCIÓN DEL BOTÓN DE BORRAR PARA VISTA LISTA ---
+        let deleteBtn = '';
+        if (typeof IS_DOCUMENTACION_PERSONAL !== 'undefined' && IS_DOCUMENTACION_PERSONAL) {
+            deleteBtn = '<button onclick="event.preventDefault(); event.stopPropagation(); deleteFile(\'' + f.id + '\')" class="text-red-400 hover:text-red-600 ml-3 p-1 transition-colors z-10" title="Borrar Archivo"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
+        }
+        
+        container.innerHTML += '<a href="' + f.url + '" target="_blank" class="flex items-center p-2.5 bg-white border border-gray-200 rounded-lg transition-colors group ' + itemClass + '"><div class="' + iconColor + ' mr-3"><i data-lucide="' + icon + '" class="w-4 h-4"></i></div><div class="flex-1 min-w-0"><p class="text-xs font-bold text-gray-700 truncate">' + f.name + '</p><p class="text-[9px] text-gray-400">' + f.date + ' • ' + f.size + '</p></div><div class="text-gray-300 group-hover:text-[#008395] flex items-center"><i data-lucide="external-link" class="w-3 h-3"></i>' + deleteBtn + '</div></a>';
       }
     });
     lucide.createIcons();
@@ -1378,12 +1402,70 @@
       if(isFolder) {
         container.innerHTML += '<div onclick="navigateFolderFromIndex(' + index + ')" class="bg-white p-3 rounded-xl border border-gray-200 transition-all text-center group flex flex-col items-center justify-center h-28 ' + itemClass + '"><div class="' + color + ' mb-1.5 group-hover:scale-110 transition-transform"><i data-lucide="' + icon + '" class="w-6 h-6"></i></div><div class="text-[10px] font-bold text-gray-700 truncate w-full px-1" title="' + f.name + '">' + f.name + '</div></div>';
       } else {
-        container.innerHTML += '<a href="' + f.url + '" target="_blank" class="bg-white p-3 rounded-xl border border-gray-200 transition-all text-center group flex flex-col items-center justify-center h-28 ' + itemClass + '"><div class="' + color + ' mb-1.5 group-hover:scale-110 transition-transform"><i data-lucide="' + icon + '" class="w-6 h-6"></i></div><div class="text-[10px] font-bold text-gray-700 truncate w-full px-1" title="' + f.name + '">' + f.name + '</div></a>';
+        // --- INYECCIÓN DEL BOTÓN DE BORRAR PARA VISTA GRILLA ---
+        let deleteBtn = '';
+        if (typeof IS_DOCUMENTACION_PERSONAL !== 'undefined' && IS_DOCUMENTACION_PERSONAL) {
+            deleteBtn = '<button onclick="event.preventDefault(); event.stopPropagation(); deleteFile(\'' + f.id + '\')" class="absolute top-1 right-1 text-red-400 hover:text-red-600 bg-white rounded-full p-1.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10" title="Borrar Archivo"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
+        }
+        
+        // Nota: Le agregué la clase 'relative' a la etiqueta <a> para que el tachito flote correctamente en la esquina.
+        container.innerHTML += '<a href="' + f.url + '" target="_blank" class="relative bg-white p-3 rounded-xl border border-gray-200 transition-all text-center group flex flex-col items-center justify-center h-28 ' + itemClass + '"><div class="' + color + ' mb-1.5 group-hover:scale-110 transition-transform"><i data-lucide="' + icon + '" class="w-6 h-6"></i></div><div class="text-[10px] font-bold text-gray-700 truncate w-full px-1" title="' + f.name + '">' + f.name + '</div>' + deleteBtn + '</a>';
       }
     });
     lucide.createIcons();
-  } 
+  }
+  
+// --- SUBIR Y BORRAR ARCHIVOS ---
+  function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      // Bloqueo de seguridad: Límite de 5MB (Google Drive es lento recibiendo bases64 gigantes desde la web)
+      if (file.size > 5242880) {
+          showToast("El archivo es muy pesado (Máximo 5MB)", "error");
+          document.getElementById('file-upload-input').value = '';
+          return;
+      }
 
+      const reader = new FileReader();
+      reader.onload = function(e) {
+          const base64Data = e.target.result;
+          const btn = document.getElementById('btn-upload-file');
+          const oldHtml = btn.innerHTML;
+          btn.innerHTML = '<div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div>';
+          btn.disabled = true;
+
+          llamarBackend('uploadFileToDrive', [CURRENT_FOLDER_ID, base64Data, file.name, file.type], function(res) {
+              btn.innerHTML = oldHtml;
+              btn.disabled = false;
+              document.getElementById('file-upload-input').value = ''; // Limpiamos el input
+              showToast("Archivo subido con éxito", "success");
+              fetchFiles(CURRENT_FOLDER_ID); // Recargamos la carpeta
+          }, function(err) {
+              btn.innerHTML = oldHtml;
+              btn.disabled = false;
+              document.getElementById('file-upload-input').value = '';
+              showToast("Error al subir: " + err.message, "error");
+          });
+      };
+      reader.readAsDataURL(file);
+  }
+
+  function deleteFile(fileId) {
+      abrirModalConfirm("¿Seguro que deseas enviar este archivo a la papelera?", function() {
+          const container = document.getElementById('browser-container');
+          container.style.opacity = '0.5'; // Efecto visual de carga
+          
+          llamarBackend('deleteFileFromDrive', [fileId], function(res) {
+              container.style.opacity = '1';
+              showToast("Archivo eliminado.", "success");
+              fetchFiles(CURRENT_FOLDER_ID); // Recargamos la carpeta
+          }, function(err) {
+              container.style.opacity = '1';
+              showToast("Error al eliminar: " + err.message, "error");
+          });
+      });
+  }
   // --- REEMPLAZO EN SINCRONIZACIÓN ---
   function runSync() {
     const btn = document.getElementById('admin-sync-btn');
