@@ -940,12 +940,41 @@
     else { sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden'); }
   }
 
-  function openPatientFolderFromIndex(index) { const p = CACHE_DATA.pacientes[index]; if(p) openPatientFolder(p.idDrive, p.paciente); }
+  function openPatientFolder(id, name) {
+    document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
+    document.getElementById('view-browser').classList.remove('hidden');
+    document.getElementById('browser-title').innerText = "Carpeta: " + name;
+    EXIT_VIEW = 'pacientes';
+    NAV_HISTORY = [];
+    CURRENT_FOLDER_ID = id;
+    IS_LIST_VIEW = true;
+    IS_DOCUMENTACION_PERSONAL = false; // Reset de seguridad
+        
+    fetchFiles(id);
+  }
   function openHCFromIndex(index) { 
       const p = CACHE_DATA.pacientes[index]; 
       if(p) openHC(p.paciente, p.dni, p.afiliado, p.dx, p.telefono, p.prestador, p.prestadorTitulo, p.idDrive); 
   }
-  function navigateFolderFromIndex(index) { const f = CURRENT_FILES[index]; if(f && f.mime.includes('folder')) { if(CURRENT_FOLDER_ID) { NAV_HISTORY.push(CURRENT_FOLDER_ID); } CURRENT_FOLDER_ID = f.id; fetchFiles(f.id); } }
+function navigateFolderFromIndex(index) { 
+      const f = CURRENT_FILES[index]; 
+      if(f && f.mime.includes('folder')) { 
+          if(CURRENT_FOLDER_ID) { 
+              // Guardamos en el historial el ID y el permiso actual
+              NAV_HISTORY.push({ id: CURRENT_FOLDER_ID, canEdit: IS_DOCUMENTACION_PERSONAL }); 
+          } 
+          CURRENT_FOLDER_ID = f.id; 
+          
+          // HERENCIA: Si entramos a Documentacion_Personal o YA estábamos adentro, habilitamos edición
+          if (f.name === 'Documentacion_Personal' || IS_DOCUMENTACION_PERSONAL) {
+              IS_DOCUMENTACION_PERSONAL = true;
+          } else {
+              IS_DOCUMENTACION_PERSONAL = false;
+          }
+          
+          fetchFiles(f.id); 
+      } 
+  }
   
   function startEditFromIndex(index) {
       const item = CURRENT_HC_HISTORIAL[index];
@@ -1310,15 +1339,23 @@
     if(!parentId) { showBrowserError('No tienes configurada tu carpeta de prestador.'); return; }
     EXIT_VIEW = 'dashboard';
     NAV_HISTORY = [];
+    CURRENT_FOLDER_ID = id;
     IS_LIST_VIEW = false;
+    IS_DOCUMENTACION_PERSONAL = false; // Reset de seguridad
     resetBrowser();
     
     llamarBackend('getSubfolderContents', [parentId, folderName], onFilesFetched);
   }
 
-  function goBackBrowser() {
-      if (NAV_HISTORY.length > 0) { const prevId = NAV_HISTORY.pop(); CURRENT_FOLDER_ID = prevId; fetchFiles(prevId); } 
-      else { nav(EXIT_VIEW); }
+function goBackBrowser() {
+      if (NAV_HISTORY.length > 0) { 
+          const prev = NAV_HISTORY.pop(); 
+          CURRENT_FOLDER_ID = prev.id; 
+          IS_DOCUMENTACION_PERSONAL = prev.canEdit; // Restauramos el permiso exacto al retroceder
+          fetchFiles(prev.id); 
+      } else { 
+          nav(EXIT_VIEW); 
+      }
   }
 
   function navigateFolder(id, name) { fetchFiles(id); }
@@ -1329,11 +1366,10 @@
   }
 
   function onFilesFetched(res) {
-    if(res.error) { showBrowserError(res.error); return; }
+      if(res.error) { showBrowserError(res.error); return; }
       if(res.id) { CURRENT_FOLDER_ID = res.id; }
       
-      // DETECCIÓN INTELIGENTE: ¿Estamos en Documentacion_Personal?
-      IS_DOCUMENTACION_PERSONAL = (res.name === 'Documentacion_Personal');
+      // Mostrar u ocultar el botón basado en nuestra herencia inteligente
       const btnUpload = document.getElementById('btn-upload-file');
       if(btnUpload) {
           if(IS_DOCUMENTACION_PERSONAL) btnUpload.classList.remove('hidden');
