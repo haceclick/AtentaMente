@@ -1336,10 +1336,16 @@ function navigateFolderFromIndex(index) {
     const niceName = folderName.replace('_', ' ');
     document.getElementById('browser-title').innerText = niceName;
     const parentId = CACHE_DATA.carpetas.documentacion; 
-    if(!parentId) { showBrowserError('No tienes configurada tu carpeta de prestador.'); return; }
+    
+    if(!parentId) { 
+        showBrowserError('No tienes configurada tu carpeta de prestador.'); 
+        return; 
+    }
+    
     EXIT_VIEW = 'dashboard';
     NAV_HISTORY = [];
-    CURRENT_FOLDER_ID = id;
+    
+    // Aquí NO debe ir CURRENT_FOLDER_ID = id; porque el ID lo averiguaremos después
     IS_LIST_VIEW = false;
     IS_DOCUMENTACION_PERSONAL = false; // Reset de seguridad
     resetBrowser();
