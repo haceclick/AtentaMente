@@ -2135,8 +2135,8 @@
       document.getElementById('view-browser').classList.remove('hidden');
       document.getElementById('browser-title').innerText = "Modelos Informe Especiales";
       
-      EXIT_VIEW = 'docclinica'; // Define a dónde vuelve al presionar atrás
-      NAV_HISTORY = [];       // <--- ESTA ES LA MODIFICACIÓN
+      EXIT_VIEW = 'docclinica'; 
+      NAV_HISTORY = []; // Vaciamos el historial para que "Atrás" vuelva directo a informes
       IS_LIST_VIEW = true; 
       IS_DOCUMENTACION_PERSONAL = false;
       
@@ -2145,9 +2145,20 @@
 
       resetBrowser();
       
-      // La llamada al backend ya se encarga de buscar la subcarpeta y entrar "directo"
-      llamarBackend('getSubfolderContents', [idInstructivos, 'Modelos_Informe_Especiales'], onFilesFetched, function(err) {
-          showBrowserError("No se pudo cargar la carpeta (verifica que exista en Instructivos): " + err.message);
+      // IMPORTANTE: Verifica si en Drive usas espacios o guiones bajos. 
+      // Aquí lo configuramos con espacios que es lo más común:
+      const nombreCarpeta = "Modelos Informe Especiales"; 
+
+      llamarBackend('getSubfolderContents', [idInstructivos, nombreCarpeta], function(res) {
+          if (res.error) {
+              showBrowserError(res.error);
+          } else {
+              // Forzamos que el ID actual del buscador sea el de la subcarpeta
+              CURRENT_FOLDER_ID = res.id; 
+              onFilesFetched(res);
+          }
+      }, function(err) {
+          showBrowserError("Error de conexión: " + err.message);
       });
   }
   
