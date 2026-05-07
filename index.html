@@ -1679,7 +1679,7 @@
           let osDelPaciente = partesOS.length > 1 ? partesOS[partesOS.length - 1].trim().toUpperCase() : 'PARTICULAR';
           let statusOS = CACHE_DATA.osConfig ? (CACHE_DATA.osConfig[osDelPaciente] || 'SI') : 'SI';
           
-          if (statusOS === 'NO') return; // Ocultamos los que no llevan informe
+          if (statusOS === 'NO') return; 
 
           let nombreLimpio = p.paciente.trim().toUpperCase();
           if (pVistos.has(nombreLimpio)) return;
@@ -1703,11 +1703,10 @@
                   <div class="flex items-center justify-center gap-2">
                       <span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold border border-orange-300">PROPIO</span>
                       <button onclick="triggerUploadPropio('${p.paciente}', '${p.idDrive}', '${p.prestador}')" class="p-1 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Subir PDF Especial Terminado"><i data-lucide="upload-cloud" class="w-4 h-4"></i></button>
-                      <button onclick="abrirModelosEspeciales()" class="p-1 text-orange-500 hover:bg-orange-50 rounded transition-colors" title="Descargar Modelo"><i data-lucide="file-template" class="w-4 h-4"></i></button>
+                      <button onclick="abrirModelosEspeciales()" class="p-1 text-orange-500 hover:bg-orange-50 rounded transition-colors" title="Ver Modelos de Informes Especiales"><i data-lucide="file-type-2" class="w-4 h-4"></i></button>
                   </div>`;
               }
           } else {
-              // Flujo NORMAL (SI)
               if (tieneInforme) {
                   statusHtml = `
                   <div class="flex items-center justify-center gap-2">
@@ -2132,6 +2131,7 @@
       const idInstructivos = CACHE_DATA.carpetas.instructivos;
       if(!idInstructivos) return showToast("La carpeta de instructivos no está configurada.", "error");
       
+      // Cambiamos a la vista del navegador de archivos
       document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
       document.getElementById('view-browser').classList.remove('hidden');
       document.getElementById('browser-title').innerText = "Modelos Informe Especiales";
@@ -2145,6 +2145,8 @@
       if(icon) icon.setAttribute('data-lucide', 'layout-grid');
 
       resetBrowser();
+
+      // Buscamos la subcarpeta específica "Modelos_Informe_Especiales" dentro de Instructivos
       llamarBackend('getSubfolderContents', [idInstructivos, 'Modelos_Informe_Especiales'], onFilesFetched, function(err) {
           showBrowserError("No se pudo cargar la carpeta (verifica que exista en Instructivos): " + err.message);
       });
