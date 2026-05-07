@@ -2133,7 +2133,7 @@
       
       document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
       document.getElementById('view-browser').classList.remove('hidden');
-      document.getElementById('browser-title').innerText = "Modelos Informe Especiales";
+      document.getElementById('browser-title').innerText = "Modelos Informes Especiales";
       
       EXIT_VIEW = 'docclinica'; 
       NAV_HISTORY = []; // Vaciamos el historial para que "Atrás" vuelva directo a informes
@@ -2147,7 +2147,7 @@
       
       // IMPORTANTE: Verifica si en Drive usas espacios o guiones bajos. 
       // Aquí lo configuramos con espacios que es lo más común:
-      const nombreCarpeta = "Modelos Informe Especiales"; 
+      const nombreCarpeta = "Modelos Informes Especiales"; 
 
       llamarBackend('getSubfolderContents', [idInstructivos, nombreCarpeta], function(res) {
           if (res.error) {
