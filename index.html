@@ -2131,13 +2131,12 @@
       const idInstructivos = CACHE_DATA.carpetas.instructivos;
       if(!idInstructivos) return showToast("La carpeta de instructivos no está configurada.", "error");
       
-      // Cambiamos a la vista del navegador de archivos
       document.querySelectorAll('.view-div').forEach(function(v) { v.classList.add('hidden'); });
       document.getElementById('view-browser').classList.remove('hidden');
       document.getElementById('browser-title').innerText = "Modelos Informe Especiales";
       
-      EXIT_VIEW = 'docclinica';
-      NAV_HISTORY = [{ id: idInstructivos, canEdit: false }];
+      EXIT_VIEW = 'docclinica'; // Define a dónde vuelve al presionar atrás
+      NAV_HISTORY = [];       // <--- ESTA ES LA MODIFICACIÓN
       IS_LIST_VIEW = true; 
       IS_DOCUMENTACION_PERSONAL = false;
       
@@ -2145,8 +2144,8 @@
       if(icon) icon.setAttribute('data-lucide', 'layout-grid');
 
       resetBrowser();
-
-      // Buscamos la subcarpeta específica "Modelos_Informe_Especiales" dentro de Instructivos
+      
+      // La llamada al backend ya se encarga de buscar la subcarpeta y entrar "directo"
       llamarBackend('getSubfolderContents', [idInstructivos, 'Modelos_Informe_Especiales'], onFilesFetched, function(err) {
           showBrowserError("No se pudo cargar la carpeta (verifica que exista en Instructivos): " + err.message);
       });
