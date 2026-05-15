@@ -1992,7 +1992,7 @@
       let finalPrestador = infoRef.nombre || CACHE_DATA.currentUserInfo.nombre;
       let finalTitulo = infoRef.titulo || "";
       let finalMatricula = infoRef.matricula || "";
-      let finalFirmaUrl = infoRef.firmaUrl || "";
+      let finalFirmaUrl = infoRef.firmaUrl || CACHE_DATA.firmaUrl || "";
       let finalEspecialidad = normalizarEspecialidad(infoRef);
 
       let rawDate = document.getElementById('doc-fecha').value;
@@ -2085,7 +2085,7 @@
       let finalPrestador = infoRef.nombre || CACHE_DATA.currentUserInfo.nombre;
       let finalTitulo = infoRef.titulo || "";
       let finalMatricula = infoRef.matricula || "";
-      let finalFirmaUrl = infoRef.firmaUrl || "";
+      let finalFirmaUrl = infoRef.firmaUrl || CACHE_DATA.firmaUrl || "";
       let finalEspecialidad = normalizarEspecialidad(infoRef);
 
       let rawDate = document.getElementById('doc-fecha').value;
