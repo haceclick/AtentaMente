@@ -1786,9 +1786,16 @@
       
       const docs = CACHE_DATA.documentosClinicos || [];
       const informesMap = {};
+
+      // 1. Creamos el mapa usando una llave única: "PACIENTE_ESPECIALIDAD"
       docs.filter(d => d.tipo === 'Informe').forEach(d => {
-          if (!informesMap[d.paciente] || new Date(parseDateStr(d.fecha)) > new Date(parseDateStr(informesMap[d.paciente].fecha))) {
-              informesMap[d.paciente] = d;
+          // Normalizamos la especialidad del documento para que coincida con nuestro diccionario
+          const espDocLimpia = d.especialidad ? d.especialidad.trim() : "General";
+          const key = d.paciente + "_" + espDocLimpia;
+          
+          // Guardamos el más reciente si hay duplicados
+          if (!informesMap[key] || new Date(parseDateStr(d.fecha)) > new Date(parseDateStr(informesMap[key].fecha))) {
+              informesMap[key] = d;
           }
       });
 
@@ -1799,20 +1806,21 @@
       CACHE_DATA.pacientes.forEach(p => {
           if (prestadorSeleccionado && prestadorSeleccionado !== "TODOS" && p.prestador !== prestadorSeleccionado) return;
 
+          // Filtro de Obras Sociales (si aplica)
           let partesOS = p.paciente.split('_');
           let osDelPaciente = partesOS.length > 1 ? partesOS[partesOS.length - 1].trim().toUpperCase() : 'PARTICULAR';
           let statusOS = CACHE_DATA.osConfig ? (CACHE_DATA.osConfig[osDelPaciente] || 'SI') : 'SI';
-          
-          if (CACHE_DATA.osHabilitadas) {
-              if (!CACHE_DATA.osHabilitadas.includes(osDelPaciente)) return; 
-          }
+          if (statusOS === 'NO') return; 
 
-          let nombreLimpio = p.paciente.trim().toUpperCase();
-          if (pVistos.has(nombreLimpio)) return;
-          pVistos.add(nombreLimpio);
+          // IMPORTANTE: Calculamos la especialidad de este renglón de la tabla
+          // Usamos el normalizador que ya armamos para Prestadores.TITULO
+          const especialidadRenglon = normalizarEspecialidad({ titulo: p.prestadorTitulo || p.titulo });
 
-          const inf = informesMap[p.paciente];
+          // LLAVE DE BUSQUEDA: "PACIENTE_ESPECIALIDAD"
+          const llaveBusqueda = p.paciente + "_" + especialidadRenglon;
+          const inf = informesMap[llaveBusqueda];
           const tieneInforme = !!inf;
+
           if (VER_SOLO_PENDIENTES && tieneInforme) return;
 
           let statusLabel = '';
@@ -1824,10 +1832,9 @@
                   actionHtml = `<button onclick="abrirCarpetaInformesDirecta('${p.idDrive}', '${p.paciente}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Ver Informe Especial"><i data-lucide="folder-search" class="w-4 h-4"></i></button>`;
               } else {
                   statusLabel = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold border border-orange-300">PROPIO</span>`;
-                  actionHtml = `
-                  <div class="flex items-center justify-center gap-1">
-                      <button onclick="triggerUploadPropio('${p.paciente}', '${p.idDrive}', '${p.prestador}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Subir PDF Especial Terminado"><i data-lucide="upload-cloud" class="w-4 h-4"></i></button>
-                      <button onclick="abrirModelosEspeciales()" class="p-1.5 text-orange-500 hover:bg-orange-50 rounded transition-colors" title="Ver Modelos de Informes Especiales"><i data-lucide="file-type-2" class="w-4 h-4"></i></button>
+                  actionHtml = `<div class="flex items-center justify-center gap-1">
+                      <button onclick="triggerUploadPropio('${p.paciente}', '${p.idDrive}', '${p.prestador}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Subir PDF Especial"><i data-lucide="upload-cloud" class="w-4 h-4"></i></button>
+                      <button onclick="abrirModelosEspeciales()" class="p-1.5 text-orange-500 hover:bg-orange-50 rounded transition-colors" title="Ver Modelos"><i data-lucide="file-type-2" class="w-4 h-4"></i></button>
                   </div>`;
               }
           } else {
@@ -1840,8 +1847,7 @@
           }
 
           const fecha = tieneInforme ? inf.fecha : '-';
-          
-          const btnAnterior = `<button onclick="abrirInformeAnterior('${p.idDrive}', '${p.paciente}')" class="p-1.5 text-gray-500 hover:text-[#008395] hover:bg-gray-100 rounded transition-colors" title="Ver Informe Dic 2025"><i data-lucide="history" class="w-4 h-4"></i></button>`;
+          const btnAnterior = `<button onclick="abrirInformeAnterior('${p.idDrive}', '${p.paciente}')" class="p-1.5 text-gray-500 hover:text-[#008395] hover:bg-gray-100 rounded transition-colors" title="Historial"><i data-lucide="history" class="w-4 h-4"></i></button>`;
 
           rows += `<tr class="hover:bg-slate-50 border-b border-gray-100 transition-colors">
               <td class="px-5 py-3 font-bold text-gray-700 text-xs">${p.paciente}</td>
@@ -1853,8 +1859,7 @@
           </tr>`;
       });
 
-      if (!rows) rows = '<tr><td colspan="6" class="text-center py-8 text-gray-400 text-xs">No hay pacientes con informes pendientes.</td></tr>';
-      tbody.innerHTML = rows;
+      tbody.innerHTML = rows || '<tr><td colspan="6" class="text-center py-8 text-gray-400 text-xs">No hay registros.</td></tr>';
       if(window.lucide) lucide.createIcons();
   }
 
