@@ -1742,6 +1742,21 @@
       return equivalencias[tituloExacto] || info.especialidad || "General";
   }
 
+  // --- REEMPLAZO AUTOMÁTICO DE PRESTADORES ---
+  function obtenerNombreRealPrestador(nombreOriginal) {
+      if (!nombreOriginal) return "";
+      let n = nombreOriginal.toUpperCase().trim();
+      
+      if (n === "LORNA FERNANDEZ GIL" || n === "ALEJO CANABAL") {
+          return "FLAVIA GATTO";
+      }
+      if (n === "AGUSTINA CERASE") {
+          return "MELINA FORMENTO";
+      }
+      
+      return nombreOriginal; // Si no está en la lista, queda igual
+  }
+  
   function cargarPacientesDoc() {
       const selectPacientes = document.getElementById('doc-paciente');
       const prestadorSeleccionado = CACHE_DATA.isAdmin ? document.getElementById('doc-admin-prestador').value : null;
@@ -1994,7 +2009,7 @@
           }
       }
 
-      let finalPrestador = infoRef.nombre || CACHE_DATA.currentUserInfo.nombre;
+      let finalPrestador = obtenerNombreRealPrestador(infoRef.nombre || CACHE_DATA.currentUserInfo.nombre);
       let finalTitulo = infoRef.titulo || "";
       let finalMatricula = infoRef.matricula || "";
       let finalFirmaUrl = infoRef.firmaUrl || CACHE_DATA.firmaUrl || "";
@@ -2087,7 +2102,7 @@
           }
       }
 
-      let finalPrestador = infoRef.nombre || CACHE_DATA.currentUserInfo.nombre;
+      let finalPrestador = obtenerNombreRealPrestador(infoRef.nombre || CACHE_DATA.currentUserInfo.nombre);
       let finalTitulo = infoRef.titulo || "";
       let finalMatricula = infoRef.matricula || "";
       let finalFirmaUrl = infoRef.firmaUrl || CACHE_DATA.firmaUrl || "";
@@ -2350,7 +2365,7 @@
           }
       }
       
-      let finalPrestador = infoRef.nombre || CACHE_DATA.currentUserInfo.nombre;
+      let finalPrestador = obtenerNombreRealPrestador(infoRef.nombre || CACHE_DATA.currentUserInfo.nombre);
       let finalEspecialidad = normalizarEspecialidad(infoRef);
 
       const oldHtml = btn.innerHTML;
