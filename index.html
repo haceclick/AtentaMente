@@ -1805,11 +1805,9 @@
 
       // 1. Creamos el mapa usando una llave única: "PACIENTE_ESPECIALIDAD"
       docs.filter(d => d.tipo === 'Informe').forEach(d => {
-          // Normalizamos la especialidad del documento para que coincida con nuestro diccionario
           const espDocLimpia = d.especialidad ? d.especialidad.trim() : "General";
           const key = d.paciente + "_" + espDocLimpia;
           
-          // Guardamos el más reciente si hay duplicados
           if (!informesMap[key] || new Date(parseDateStr(d.fecha)) > new Date(parseDateStr(informesMap[key].fecha))) {
               informesMap[key] = d;
           }
@@ -1822,17 +1820,12 @@
       CACHE_DATA.pacientes.forEach(p => {
           if (prestadorSeleccionado && prestadorSeleccionado !== "TODOS" && p.prestador !== prestadorSeleccionado) return;
 
-          // Filtro de Obras Sociales (si aplica)
           let partesOS = p.paciente.split('_');
           let osDelPaciente = partesOS.length > 1 ? partesOS[partesOS.length - 1].trim().toUpperCase() : 'PARTICULAR';
           let statusOS = CACHE_DATA.osConfig ? (CACHE_DATA.osConfig[osDelPaciente] || 'SI') : 'SI';
           if (statusOS === 'NO') return; 
 
-          // IMPORTANTE: Calculamos la especialidad de este renglón de la tabla
-          // Usamos el normalizador que ya armamos para Prestadores.TITULO
           const especialidadRenglon = normalizarEspecialidad({ titulo: p.prestadorTitulo || p.titulo });
-
-          // LLAVE DE BUSQUEDA: "PACIENTE_ESPECIALIDAD"
           const llaveBusqueda = p.paciente + "_" + especialidadRenglon;
           const inf = informesMap[llaveBusqueda];
           const tieneInforme = !!inf;
@@ -1842,13 +1835,19 @@
           let statusLabel = '';
           let actionHtml = '-';
           
+          // --- AQUÍ ESTÁ LA MAGIA DEL BOTÓN DE ELIMINAR ---
           if (statusOS === 'PROPIO') {
               if (tieneInforme) {
                   statusLabel = `<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-300">ENTREGADO</span>`;
-                  actionHtml = `<button onclick="abrirCarpetaInformesDirecta('${p.idDrive}', '${p.paciente}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Ver Informe Especial"><i data-lucide="folder-search" class="w-4 h-4"></i></button>`;
+                  actionHtml = `
+                  <div class="flex items-center justify-center gap-1">
+                      <button onclick="abrirCarpetaInformesDirecta('${p.idDrive}', '${p.paciente}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Ver Informe Especial"><i data-lucide="folder-search" class="w-4 h-4"></i></button>
+                      <button onclick="borrarInformeControl('${p.paciente}', '${especialidadRenglon}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" title="Eliminar Informe"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                  </div>`;
               } else {
                   statusLabel = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold border border-orange-300">PROPIO</span>`;
-                  actionHtml = `<div class="flex items-center justify-center gap-1">
+                  actionHtml = `
+                  <div class="flex items-center justify-center gap-1">
                       <button onclick="triggerUploadPropio('${p.paciente}', '${p.idDrive}', '${p.prestador}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Subir PDF Especial"><i data-lucide="upload-cloud" class="w-4 h-4"></i></button>
                       <button onclick="abrirModelosEspeciales()" class="p-1.5 text-orange-500 hover:bg-orange-50 rounded transition-colors" title="Ver Modelos"><i data-lucide="file-type-2" class="w-4 h-4"></i></button>
                   </div>`;
@@ -1856,7 +1855,11 @@
           } else {
               if (tieneInforme) {
                   statusLabel = `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold border border-green-300">SÍ</span>`;
-                  actionHtml = `<button onclick="abrirCarpetaInformesDirecta('${p.idDrive}', '${p.paciente}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Ver Informe"><i data-lucide="folder-search" class="w-4 h-4"></i></button>`;
+                  actionHtml = `
+                  <div class="flex items-center justify-center gap-1">
+                      <button onclick="abrirCarpetaInformesDirecta('${p.idDrive}', '${p.paciente}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Ver Informe"><i data-lucide="folder-search" class="w-4 h-4"></i></button>
+                      <button onclick="borrarInformeControl('${p.paciente}', '${especialidadRenglon}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" title="Eliminar Informe"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                  </div>`;
               } else {
                   statusLabel = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold border border-red-300">NO</span>`;
               }
