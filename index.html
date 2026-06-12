@@ -2277,16 +2277,23 @@
       document.getElementById('file-upload-propio').click();
   }
 
-  function handleUploadPropio(event) {
+   function handleUploadPropio(event) {
       const file = event.target.files[0];
       if (!file) return;
-      if (file.type !== "application/pdf") {
-           showToast("Solo se permiten archivos PDF.", "error");
-           document.getElementById('file-upload-propio').value = ''; return;
+      
+      // --- DOBLE CANDADO ESTRICTO: Solo PDF ---
+      const isPdfType = file.type === "application/pdf";
+      const isPdfExt = file.name.toLowerCase().endsWith('.pdf');
+      
+      if (!isPdfType || !isPdfExt) {
+           showToast("⚠️ Formato bloqueado. Solo se pueden subir archivos .PDF", "error");
+           document.getElementById('file-upload-propio').value = ''; 
+           return;
       }
+      // ----------------------------------------
+
       if (file.size > 10485760) {
           showToast("El archivo es muy pesado (Máximo 10MB)", "error");
-          // Recuerda que el input de abajo cambia según qué función estés editando
           document.getElementById('file-upload-propio').value = ''; 
           return;
       }
