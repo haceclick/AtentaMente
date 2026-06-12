@@ -1882,6 +1882,34 @@
       if(window.lucide) lucide.createIcons();
   }
 
+  // --- FUNCIÓN: ELIMINAR INFORME DESDE LA TABLA ---
+  function borrarInformeControl(paciente, especialidad) {
+      abrirModalConfirm(`¿Estás seguro de que deseas eliminar el informe de ${paciente}? Se borrará del sistema y el PDF se enviará a la papelera en Drive.`, function() {
+          const tbody = document.getElementById('tbody-control-informes');
+          tbody.style.opacity = '0.5';
+          
+          llamarBackend('eliminarInformeClinico', [paciente, especialidad], function(res) {
+              tbody.style.opacity = '1';
+              if (res.success) {
+                  showToast("Informe eliminado correctamente.", "success");
+                  // Removemos del caché local para actualizar la tabla al instante
+                  if (CACHE_DATA.documentosClinicos) {
+                      CACHE_DATA.documentosClinicos = CACHE_DATA.documentosClinicos.filter(d => 
+                          !(d.paciente === paciente && (d.especialidad || 'General') === especialidad && d.tipo === 'Informe')
+                      );
+                  }
+                  renderControlInformes();
+              } else {
+                  showToast("Error al eliminar: " + res.error, "error");
+              }
+          }, function(err) {
+              tbody.style.opacity = '1';
+              showToast("Error de conexión: " + err.message, "error");
+          });
+      });
+  }
+  
+
   function formatearPeriodo(str) {
       if (!str || str === '-') return "Inicio";
       let s = str.trim().toLowerCase();
