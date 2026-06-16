@@ -587,8 +587,29 @@
 
   // --- CONTROLADOR DEL MODAL DE CONFIRMACIÓN ---
   var accionConfirmada = null;
-  function abrirModalConfirm(mensaje, accion) {
+  function abrirModalConfirm(mensaje, accion, isReemplazo = false) {
       document.getElementById('confirm-msg').innerText = mensaje;
+      
+      const title = document.querySelector('#modal-confirm h3');
+      const btn = document.querySelector('#modal-confirm button.bg-red-600') || document.querySelector('#modal-confirm button.bg-orange-500');
+      
+      if(isReemplazo) {
+          if(title) title.innerText = 'Confirmar Reemplazo';
+          if(btn) {
+              btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+              btn.classList.add('bg-orange-500', 'hover:bg-orange-600');
+              btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3 h-3"></i> Reemplazar';
+          }
+      } else {
+          if(title) title.innerText = 'Confirmar Eliminación';
+          if(btn) {
+              btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+              btn.classList.add('bg-red-600', 'hover:bg-red-700');
+              btn.innerHTML = '<i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar';
+          }
+      }
+      lucide.createIcons();
+      
       accionConfirmada = accion;
       document.getElementById('modal-confirm').classList.remove('hidden');
   }
@@ -2030,9 +2051,6 @@
       const btn = document.getElementById('btn-save-doc');
       if(!html.trim()) return showToast("El documento está vacío", "error");
       
-      btn.disabled = true;
-      btn.innerHTML = `<div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div> Generando...`;
-
       let infoRef = CACHE_DATA.currentUserInfo;
       if (CACHE_DATA.isAdmin) {
           const prestadorSel = document.getElementById('doc-admin-prestador').value;
@@ -2061,8 +2079,12 @@
               especialidadAGuardar = document.getElementById('doc-template-especialidad').value;
           }
           
+          btn.disabled = true;
+          btn.innerHTML = `<div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div> Generando...`;
+          
           llamarBackend('guardarTemplate', [finalPrestador, tipo, especialidadAGuardar, html], function(res) {
               btn.disabled = false; btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Confirmar y Guardar`;
+              lucide.createIcons();
               document.getElementById('modal-preview').classList.add('hidden');
               document.getElementById('div-admin-especialidad-template').classList.add('hidden'); 
               cerrarEditorDoc(); 
@@ -2071,6 +2093,7 @@
               llamarBackend('getTemplates', [finalPrestador], function(ts) { misTemplates = ts; });
           }, function(err) {
               btn.disabled = false; btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Confirmar y Guardar`;
+              lucide.createIcons();
               showToast("Error al guardar: " + err.message, "error");
           });
           
@@ -2097,22 +2120,40 @@
               fechaDoc: fechaDocFinal
           };
           
-          llamarBackend('guardarDocumentoClinico', [payload], function(res) {
-              btn.disabled = false; btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Confirmar y Guardar`;
-              document.getElementById('modal-preview').classList.add('hidden');
-              cerrarEditorDoc();
-              
-              if(res.success) { 
-                  showToast("PDF guardado en la carpeta del paciente", "success"); 
-                  if (!CACHE_DATA.documentosClinicos) CACHE_DATA.documentosClinicos = [];
-                  CACHE_DATA.documentosClinicos.push(res.doc);
-                  renderControlInformes();
-              } 
-              else { showToast("Error: " + res.error, "error"); }
-          }, function(err) {
-              btn.disabled = false; btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Confirmar y Guardar`;
-              showToast("Error al guardar: " + err.message, "error");
-          });
+          let documentExists = false;
+          if (CACHE_DATA.documentosClinicos) {
+              documentExists = CACHE_DATA.documentosClinicos.some(d => d.paciente === payload.paciente && d.especialidad === payload.especialidad && d.tipo === payload.tipo);
+          }
+
+          const ejecutarGuardado = () => {
+              btn.disabled = true;
+              btn.innerHTML = `<div class="loader w-3 h-3 border-2 border-white border-t-transparent"></div> Generando...`;
+              llamarBackend('guardarDocumentoClinico', [payload], function(res) {
+                  btn.disabled = false; btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Confirmar y Guardar`;
+                  lucide.createIcons();
+                  document.getElementById('modal-preview').classList.add('hidden');
+                  cerrarEditorDoc();
+                  
+                  if(res.success) { 
+                      showToast("PDF guardado en la carpeta del paciente", "success"); 
+                      if (!CACHE_DATA.documentosClinicos) CACHE_DATA.documentosClinicos = [];
+                      CACHE_DATA.documentosClinicos = CACHE_DATA.documentosClinicos.filter(d => !(d.paciente === payload.paciente && d.especialidad === payload.especialidad && d.tipo === payload.tipo));
+                      CACHE_DATA.documentosClinicos.push(res.doc);
+                      renderControlInformes();
+                  } 
+                  else { showToast("Error: " + res.error, "error"); }
+              }, function(err) {
+                  btn.disabled = false; btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Confirmar y Guardar`;
+                  lucide.createIcons();
+                  showToast("Error al guardar: " + err.message, "error");
+              });
+          };
+
+          if (documentExists) {
+              abrirModalConfirm(`Ya existe un ${payload.tipo} de ${finalEspecialidad} cargado para este paciente. ¿Deseas reemplazar el documento anterior?`, ejecutarGuardado, true);
+          } else {
+              ejecutarGuardado();
+          }
       }
   }
 
@@ -2277,23 +2318,16 @@
       document.getElementById('file-upload-propio').click();
   }
 
-   function handleUploadPropio(event) {
+  function handleUploadPropio(event) {
       const file = event.target.files[0];
       if (!file) return;
-      
-      // --- DOBLE CANDADO ESTRICTO: Solo PDF ---
-      const isPdfType = file.type === "application/pdf";
-      const isPdfExt = file.name.toLowerCase().endsWith('.pdf');
-      
-      if (!isPdfType || !isPdfExt) {
-           showToast("⚠️ Formato bloqueado. Solo se pueden subir archivos .PDF", "error");
-           document.getElementById('file-upload-propio').value = ''; 
-           return;
+      if (file.type !== "application/pdf") {
+           showToast("Solo se permiten archivos PDF.", "error");
+           document.getElementById('file-upload-propio').value = ''; return;
       }
-      // ----------------------------------------
-
       if (file.size > 10485760) {
           showToast("El archivo es muy pesado (Máximo 10MB)", "error");
+          // Recuerda que el input de abajo cambia según qué función estés editando
           document.getElementById('file-upload-propio').value = ''; 
           return;
       }
