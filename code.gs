@@ -727,6 +727,10 @@ function getTemplates(prestador) {
   } catch(e) { return []; }
 }
 
+function normStr(str) {
+    return String(str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+}
+
 function guardarDocumentoClinico(payload) {
   try {
     let cleanId = String(payload.idDrive).trim();
@@ -811,10 +815,18 @@ function guardarDocumentoClinico(payload) {
     
     let actualizado = false;
     const esTipoInforme = String(payload.tipo).startsWith("Informe");
+    const pacTarget = normStr(payload.paciente);
+    const presTarget = normStr(payload.prestador);
+    const espTarget = normStr(payload.especialidad);
+
     for(let i = 1; i < dataDocs.length; i++) {
-        // Si el paciente ya tiene este mismo tipo de informe en esa especialidad, actualizamos la fila
+        // Si el paciente ya tiene este mismo tipo de informe con este prestador o especialidad, actualizamos la fila
         const matchTipo = esTipoInforme ? String(dataDocs[i][2]).startsWith("Informe") : (dataDocs[i][2] === payload.tipo);
-        if(matchTipo && dataDocs[i][4] === payload.paciente && dataDocs[i][3] === payload.especialidad) {
+        const matchPac = normStr(dataDocs[i][4]) === pacTarget;
+        const matchPres = presTarget ? (normStr(dataDocs[i][5]) === presTarget) : false;
+        const matchEsp = normStr(dataDocs[i][3]) === espTarget;
+
+        if(matchTipo && matchPac && (matchPres || matchEsp)) {
             sheetDocs.getRange(i + 1, 2).setValue(fechaDoc); // Actualiza Fecha
             sheetDocs.getRange(i + 1, 3).setValue(payload.tipo); // Actualiza Tipo al nuevo nombre
             sheetDocs.getRange(i + 1, 6).setValue(payload.prestador); // Actualiza Prestador
@@ -901,10 +913,19 @@ function subirInformePropio(payload) {
     const dataDocs = sheetDocs.getDataRange().getValues();
     
     const tipoInformeGuar = payload.tipo || "Informe Junio";
+    const pacTarget = normStr(payload.paciente);
+    const presTarget = normStr(payload.prestador);
+    const espTarget = normStr(payload.especialidad);
+
     let actualizado = false;
     for(let i = 1; i < dataDocs.length; i++) {
-        // Busca coincidencias exactas de Paciente Y Especialidad
-        if(String(dataDocs[i][2]).startsWith('Informe') && dataDocs[i][4] === payload.paciente && dataDocs[i][3] === payload.especialidad) {
+        // Busca coincidencias de Paciente Y (Prestador O Especialidad)
+        const matchTipo = String(dataDocs[i][2]).startsWith('Informe');
+        const matchPac = normStr(dataDocs[i][4]) === pacTarget;
+        const matchPres = presTarget ? (normStr(dataDocs[i][5]) === presTarget) : false;
+        const matchEsp = normStr(dataDocs[i][3]) === espTarget;
+
+        if(matchTipo && matchPac && (matchPres || matchEsp)) {
             sheetDocs.getRange(i + 1, 2).setValue(fechaDoc); // Fecha
             sheetDocs.getRange(i + 1, 3).setValue(tipoInformeGuar); // Tipo
             sheetDocs.getRange(i + 1, 6).setValue(payload.prestador); // Prestador
@@ -925,6 +946,48 @@ function subirInformePropio(payload) {
   }
 }
 
+function eliminarInformeClinico(paciente, especialidad, prestador) {
+  try {
+    const ss = SpreadsheetApp.openById(ID_PLANILLA);
+    const sheetDocs = ss.getSheetByName('Documentos_Clinicos');
+    if (!sheetDocs) return { error: "No se encontró la hoja Documentos_Clinicos" };
+    
+    const dataDocs = sheetDocs.getDataRange().getValues();
+    const pacK = normStr(paciente);
+    const presK = normStr(prestador);
+    const espK = normStr(especialidad);
+    
+    let eliminado = false;
+    for (let i = dataDocs.length - 1; i >= 1; i--) {
+        const rowTipo = String(dataDocs[i][2] || "");
+        if (rowTipo.startsWith("Informe")) {
+            const rowPac = normStr(dataDocs[i][4]);
+            const rowPres = normStr(dataDocs[i][5]);
+            const rowEsp = normStr(dataDocs[i][3]);
+            
+            if (rowPac === pacK && ((presK && rowPres === presK) || rowEsp === espK)) {
+                try {
+                    const urlDrive = String(dataDocs[i][6] || "").trim();
+                    if (urlDrive) {
+                        let fileId = "";
+                        const match = urlDrive.match(/[-\w]{25,}/);
+                        if (match) fileId = match[0];
+                        if (fileId) DriveApp.getFileById(fileId).setTrashed(true);
+                    }
+                } catch(e) {}
+                
+                sheetDocs.deleteRow(i + 1);
+                eliminado = true;
+                break;
+            }
+        }
+    }
+    return eliminado ? { success: true } : { error: "No se encontró el informe en la planilla." };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 function getUltimoInforme(paciente, prestador, especialidad, tipo) {
   try {
     const ss = SpreadsheetApp.openById(ID_PLANILLA);
@@ -932,16 +995,22 @@ function getUltimoInforme(paciente, prestador, especialidad, tipo) {
     const dataDocs = sheetDocs.getDataRange().getValues();
 
     const isInforme = String(tipo).startsWith("Informe");
+    const pacTarget = normStr(paciente);
+    const presTarget = normStr(prestador);
+    const espTarget = normStr(especialidad);
 
     for (let i = dataDocs.length - 1; i >= 1; i--) {
         const rowTipo = String(dataDocs[i][2] || "").trim();
-        const rowEsp = String(dataDocs[i][3] || "").trim();
-        const rowPac = String(dataDocs[i][4] || "").trim();
+        const rowEsp = normStr(dataDocs[i][3]);
+        const rowPac = normStr(dataDocs[i][4]);
+        const rowPres = normStr(dataDocs[i][5]);
         const htmlGuardado = dataDocs[i][7];
 
         const tipoCoincide = isInforme ? rowTipo.startsWith("Informe") : (rowTipo === tipo);
+        const matchPres = presTarget ? (rowPres === presTarget) : false;
+        const matchEsp = (rowEsp === espTarget || !espTarget || espTarget === "GENERAL" || rowEsp === "GENERAL");
         
-        if (rowPac === paciente && tipoCoincide && (rowEsp === especialidad || !especialidad || especialidad === "General" || rowEsp === "General")) {
+        if (rowPac === pacTarget && tipoCoincide && (matchPres || matchEsp)) {
             if (htmlGuardado && String(htmlGuardado).trim() !== "") {
                 return { success: true, html: htmlGuardado };
             }

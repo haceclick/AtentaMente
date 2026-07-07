@@ -1987,15 +1987,27 @@
       tbody.innerHTML = '';
       
       const docs = CACHE_DATA.documentosClinicos || [];
-      const informesMap = {};
+      const normK = str => String(str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+      const informesMapPres = {};
+      const informesMapEsp = {};
 
-      // 1. Creamos el mapa usando una llave única: "PACIENTE_ESPECIALIDAD"
+      // 1. Creamos mapas por "PACIENTE_PRESTADOR" (principal) y "PACIENTE_ESPECIALIDAD" (respaldo)
       docs.filter(d => d.tipo && String(d.tipo).startsWith('Informe')).forEach(d => {
-          const espDocLimpia = d.especialidad ? d.especialidad.trim() : "General";
-          const key = d.paciente + "_" + espDocLimpia;
+          const pacK = normK(d.paciente);
+          const presK = normK(d.prestador);
+          const espK = normK(d.especialidad);
           
-          if (!informesMap[key] || new Date(parseDateStr(d.fecha)) > new Date(parseDateStr(informesMap[key].fecha))) {
-              informesMap[key] = d;
+          if (pacK && presK) {
+              const kPres = pacK + "_" + presK;
+              if (!informesMapPres[kPres] || new Date(parseDateStr(d.fecha)) > new Date(parseDateStr(informesMapPres[kPres].fecha))) {
+                  informesMapPres[kPres] = d;
+              }
+          }
+          if (pacK && espK) {
+              const kEsp = pacK + "_" + espK;
+              if (!informesMapEsp[kEsp] || new Date(parseDateStr(d.fecha)) > new Date(parseDateStr(informesMapEsp[kEsp].fecha))) {
+                  informesMapEsp[kEsp] = d;
+              }
           }
       });
 
@@ -2025,8 +2037,11 @@
           if (statusOS === 'NO') return; 
 
           const especialidadRenglon = normalizarEspecialidad({ titulo: p.prestadorTitulo || p.titulo });
-          const llaveBusqueda = p.paciente + "_" + especialidadRenglon;
-          const inf = informesMap[llaveBusqueda];
+          const pacK = normK(p.paciente);
+          const presK = normK(p.prestador);
+          const espK = normK(especialidadRenglon);
+          
+          const inf = informesMapPres[pacK + "_" + presK] || informesMapEsp[pacK + "_" + espK];
           const tieneInforme = !!inf;
 
           totalInformesCount++;
@@ -2049,7 +2064,7 @@
                   actionHtml = `
                   <div class="flex items-center justify-center gap-1">
                       <button onclick="abrirCarpetaInformesDirecta('${p.idDrive}', '${p.paciente}', '${inf ? inf.tipo : (p.aprobado || '')}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Ver Informe Especial"><i data-lucide="folder-search" class="w-4 h-4"></i></button>
-                      <button onclick="borrarInformeControl('${p.paciente}', '${especialidadRenglon}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" title="Eliminar Informe"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                      <button onclick="borrarInformeControl('${p.paciente}', '${especialidadRenglon}', '${p.prestador}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" title="Eliminar Informe"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                   </div>`;
               } else {
                   statusLabel = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold border border-orange-300">PROPIO</span>`;
@@ -2065,7 +2080,7 @@
                   actionHtml = `
                   <div class="flex items-center justify-center gap-1">
                       <button onclick="abrirCarpetaInformesDirecta('${p.idDrive}', '${p.paciente}', '${inf ? inf.tipo : (p.aprobado || '')}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Ver Informe"><i data-lucide="folder-search" class="w-4 h-4"></i></button>
-                      <button onclick="borrarInformeControl('${p.paciente}', '${especialidadRenglon}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" title="Eliminar Informe"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                      <button onclick="borrarInformeControl('${p.paciente}', '${especialidadRenglon}', '${p.prestador}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" title="Eliminar Informe"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                   </div>`;
               } else {
                   statusLabel = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold border border-red-300">NO</span>`;
@@ -2111,20 +2126,28 @@
   }
 
   // --- FUNCIÓN: ELIMINAR INFORME DESDE LA TABLA ---
-  function borrarInformeControl(paciente, especialidad) {
+  function borrarInformeControl(paciente, especialidad, prestador) {
       abrirModalConfirm(`¿Estás seguro de que deseas eliminar el informe de ${paciente}? Se borrará del sistema y el PDF se enviará a la papelera en Drive.`, function() {
           const tbody = document.getElementById('tbody-control-informes');
           tbody.style.opacity = '0.5';
           
-          llamarBackend('eliminarInformeClinico', [paciente, especialidad], function(res) {
+          llamarBackend('eliminarInformeClinico', [paciente, especialidad, prestador], function(res) {
               tbody.style.opacity = '1';
               if (res.success) {
                   showToast("Informe eliminado correctamente.", "success");
                   // Removemos del caché local para actualizar la tabla al instante
                   if (CACHE_DATA.documentosClinicos) {
-                      CACHE_DATA.documentosClinicos = CACHE_DATA.documentosClinicos.filter(d => 
-                          !(d.paciente === paciente && (d.especialidad || 'General') === especialidad && String(d.tipo).startsWith('Informe'))
-                      );
+                      const normK = str => String(str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+                      const pacK = normK(paciente);
+                      const presK = normK(prestador);
+                      const espK = normK(especialidad);
+                      CACHE_DATA.documentosClinicos = CACHE_DATA.documentosClinicos.filter(d => {
+                          const isInforme = String(d.tipo).startsWith('Informe');
+                          const matchPac = normK(d.paciente) === pacK;
+                          const matchPres = presK ? (normK(d.prestador) === presK) : false;
+                          const matchEsp = normK(d.especialidad || 'General') === espK;
+                          return !(isInforme && matchPac && (matchPres || matchEsp));
+                      });
                   }
                   renderControlInformes();
               } else {
@@ -2388,10 +2411,18 @@
           
           let documentExists = false;
           const esTipoInforme = String(payload.tipo).startsWith("Informe");
+          const normK = str => String(str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+          const pacK = normK(payload.paciente);
+          const presK = normK(payload.prestador);
+          const espK = normK(payload.especialidad);
+
           if (CACHE_DATA.documentosClinicos) {
               documentExists = CACHE_DATA.documentosClinicos.some(d => {
                   const matchTipo = esTipoInforme ? String(d.tipo).startsWith("Informe") : (d.tipo === payload.tipo);
-                  return d.paciente === payload.paciente && d.especialidad === payload.especialidad && matchTipo;
+                  const matchPac = normK(d.paciente) === pacK;
+                  const matchPres = presK ? (normK(d.prestador) === presK) : false;
+                  const matchEsp = normK(d.especialidad) === espK;
+                  return matchTipo && matchPac && (matchPres || matchEsp);
               });
           }
 
@@ -2409,7 +2440,10 @@
                       if (!CACHE_DATA.documentosClinicos) CACHE_DATA.documentosClinicos = [];
                       CACHE_DATA.documentosClinicos = CACHE_DATA.documentosClinicos.filter(d => {
                           const matchTipo = esTipoInforme ? String(d.tipo).startsWith("Informe") : (d.tipo === payload.tipo);
-                          return !(d.paciente === payload.paciente && d.especialidad === payload.especialidad && matchTipo);
+                          const matchPac = normK(d.paciente) === pacK;
+                          const matchPres = presK ? (normK(d.prestador) === presK) : false;
+                          const matchEsp = normK(d.especialidad) === espK;
+                          return !(matchTipo && matchPac && (matchPres || matchEsp));
                       });
                       CACHE_DATA.documentosClinicos.push(res.doc);
                       renderControlInformes();
