@@ -743,8 +743,7 @@ function guardarDocumentoClinico(payload) {
     } else if (payload.tipo && (payload.tipo.includes("Diciembre") || payload.tipo === "Informe Diciembre")) {
         nombreSemestre = "Informes_semestrales_Diciembre";
     } else {
-        const isPrimerSemestre = (new Date().getMonth() + 1) <= 6;
-        nombreSemestre = isPrimerSemestre ? "Informes_semestrales_Junio" : "Informes_semestrales_Diciembre";
+        nombreSemestre = "Presupuestos_Plan de TTO_Informes";
     }
     let semFolder; const sfs = yearFolder.getFoldersByName(nombreSemestre);
     if(sfs.hasNext()) semFolder = sfs.next(); else semFolder = yearFolder.createFolder(nombreSemestre);
@@ -811,10 +810,13 @@ function guardarDocumentoClinico(payload) {
     const dataDocs = sheetDocs.getDataRange().getValues();
     
     let actualizado = false;
+    const esTipoInforme = String(payload.tipo).startsWith("Informe");
     for(let i = 1; i < dataDocs.length; i++) {
         // Si el paciente ya tiene este mismo tipo de informe en esa especialidad, actualizamos la fila
-        if(dataDocs[i][2] === payload.tipo && dataDocs[i][4] === payload.paciente && dataDocs[i][3] === payload.especialidad) {
+        const matchTipo = esTipoInforme ? String(dataDocs[i][2]).startsWith("Informe") : (dataDocs[i][2] === payload.tipo);
+        if(matchTipo && dataDocs[i][4] === payload.paciente && dataDocs[i][3] === payload.especialidad) {
             sheetDocs.getRange(i + 1, 2).setValue(fechaDoc); // Actualiza Fecha
+            sheetDocs.getRange(i + 1, 3).setValue(payload.tipo); // Actualiza Tipo al nuevo nombre
             sheetDocs.getRange(i + 1, 6).setValue(payload.prestador); // Actualiza Prestador
             sheetDocs.getRange(i + 1, 7).setValue(newFile.getUrl()); // Actualiza Link
             sheetDocs.getRange(i + 1, 8).setValue(payload.html); // <--- NUEVO: Actualiza el texto en la Columna H
@@ -864,8 +866,19 @@ function subirInformePropio(payload) {
     if(yfs.hasNext()) yearFolder = yfs.next(); 
     else yearFolder = patientFolder.createFolder(anioActual);
     
-    const isPrimerSemestre = (new Date().getMonth() + 1) <= 6;
-    const nombreSemestre = isPrimerSemestre ? "Informes_semestrales_Junio" : "Informes_semestrales_Diciembre";
+    let nombreSemestre;
+    if (payload.tipo && (payload.tipo.includes("Junio") || payload.tipo === "Informe Junio")) {
+        nombreSemestre = "Informes_semestrales_Junio";
+    } else if (payload.tipo && (payload.tipo.includes("Diciembre") || payload.tipo === "Informe Diciembre")) {
+        nombreSemestre = "Informes_semestrales_Diciembre";
+    } else if (payload.fileName && payload.fileName.includes("Junio")) {
+        nombreSemestre = "Informes_semestrales_Junio";
+    } else if (payload.fileName && payload.fileName.includes("Diciembre")) {
+        nombreSemestre = "Informes_semestrales_Diciembre";
+    } else {
+        const mes = new Date().getMonth() + 1;
+        nombreSemestre = (mes <= 9) ? "Informes_semestrales_Junio" : "Informes_semestrales_Diciembre";
+    }
     let semFolder; 
     const sfs = yearFolder.getFoldersByName(nombreSemestre);
     if(sfs.hasNext()) semFolder = sfs.next(); 
@@ -887,11 +900,13 @@ function subirInformePropio(payload) {
     let sheetDocs = ss.getSheetByName('Documentos_Clinicos');
     const dataDocs = sheetDocs.getDataRange().getValues();
     
+    const tipoInformeGuar = payload.tipo || "Informe Junio";
     let actualizado = false;
     for(let i = 1; i < dataDocs.length; i++) {
         // Busca coincidencias exactas de Paciente Y Especialidad
-        if(dataDocs[i][2] === 'Informe' && dataDocs[i][4] === payload.paciente && dataDocs[i][3] === payload.especialidad) {
+        if(String(dataDocs[i][2]).startsWith('Informe') && dataDocs[i][4] === payload.paciente && dataDocs[i][3] === payload.especialidad) {
             sheetDocs.getRange(i + 1, 2).setValue(fechaDoc); // Fecha
+            sheetDocs.getRange(i + 1, 3).setValue(tipoInformeGuar); // Tipo
             sheetDocs.getRange(i + 1, 6).setValue(payload.prestador); // Prestador
             sheetDocs.getRange(i + 1, 7).setValue(newFile.getUrl()); // Link Drive
             actualizado = true; 
@@ -901,10 +916,10 @@ function subirInformePropio(payload) {
     
     if(!actualizado) {
         // CORRECCIÓN: Agregamos un string vacío "" al final para la Columna H (Texto editable) así la fila queda prolija
-        sheetDocs.appendRow([Utilities.getUuid(), fechaDoc, 'Informe', payload.especialidad, payload.paciente, payload.prestador, newFile.getUrl(), ""]);
+        sheetDocs.appendRow([Utilities.getUuid(), fechaDoc, tipoInformeGuar, payload.especialidad, payload.paciente, payload.prestador, newFile.getUrl(), ""]);
     }
     
-    return { success: true, doc: { fecha: fechaDoc, tipo: 'Informe', especialidad: payload.especialidad, paciente: payload.paciente, prestador: payload.prestador, url: newFile.getUrl() } };
+    return { success: true, doc: { fecha: fechaDoc, tipo: tipoInformeGuar, especialidad: payload.especialidad, paciente: payload.paciente, prestador: payload.prestador, url: newFile.getUrl() } };
   } catch(e) { 
     return { error: e.message }; 
   }

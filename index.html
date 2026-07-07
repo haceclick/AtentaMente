@@ -1990,7 +1990,7 @@
       const informesMap = {};
 
       // 1. Creamos el mapa usando una llave única: "PACIENTE_ESPECIALIDAD"
-      docs.filter(d => d.tipo === 'Informe').forEach(d => {
+      docs.filter(d => d.tipo && String(d.tipo).startsWith('Informe')).forEach(d => {
           const espDocLimpia = d.especialidad ? d.especialidad.trim() : "General";
           const key = d.paciente + "_" + espDocLimpia;
           
@@ -2055,7 +2055,7 @@
                   statusLabel = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[10px] font-bold border border-orange-300">PROPIO</span>`;
                   actionHtml = `
                   <div class="flex items-center justify-center gap-1">
-                      <button onclick="triggerUploadPropio('${p.paciente}', '${p.idDrive}', '${p.prestador}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Subir PDF Especial"><i data-lucide="upload-cloud" class="w-4 h-4"></i></button>
+                      <button onclick="triggerUploadPropio('${p.paciente}', '${p.idDrive}', '${p.prestador}', '${inf ? inf.tipo : (p.aprobado || '')}')" class="p-1.5 text-[#008395] hover:bg-teal-50 rounded transition-colors" title="Subir PDF Especial"><i data-lucide="upload-cloud" class="w-4 h-4"></i></button>
                       <button onclick="abrirModelosEspeciales()" class="p-1.5 text-orange-500 hover:bg-orange-50 rounded transition-colors" title="Ver Modelos"><i data-lucide="file-type-2" class="w-4 h-4"></i></button>
                   </div>`;
               }
@@ -2123,7 +2123,7 @@
                   // Removemos del caché local para actualizar la tabla al instante
                   if (CACHE_DATA.documentosClinicos) {
                       CACHE_DATA.documentosClinicos = CACHE_DATA.documentosClinicos.filter(d => 
-                          !(d.paciente === paciente && (d.especialidad || 'General') === especialidad && d.tipo === 'Informe')
+                          !(d.paciente === paciente && (d.especialidad || 'General') === especialidad && String(d.tipo).startsWith('Informe'))
                       );
                   }
                   renderControlInformes();
@@ -2387,8 +2387,12 @@
           };
           
           let documentExists = false;
+          const esTipoInforme = String(payload.tipo).startsWith("Informe");
           if (CACHE_DATA.documentosClinicos) {
-              documentExists = CACHE_DATA.documentosClinicos.some(d => d.paciente === payload.paciente && d.especialidad === payload.especialidad && d.tipo === payload.tipo);
+              documentExists = CACHE_DATA.documentosClinicos.some(d => {
+                  const matchTipo = esTipoInforme ? String(d.tipo).startsWith("Informe") : (d.tipo === payload.tipo);
+                  return d.paciente === payload.paciente && d.especialidad === payload.especialidad && matchTipo;
+              });
           }
 
           const ejecutarGuardado = () => {
@@ -2403,7 +2407,10 @@
                   if(res.success) { 
                       showToast("PDF guardado en la carpeta del paciente", "success"); 
                       if (!CACHE_DATA.documentosClinicos) CACHE_DATA.documentosClinicos = [];
-                      CACHE_DATA.documentosClinicos = CACHE_DATA.documentosClinicos.filter(d => !(d.paciente === payload.paciente && d.especialidad === payload.especialidad && d.tipo === payload.tipo));
+                      CACHE_DATA.documentosClinicos = CACHE_DATA.documentosClinicos.filter(d => {
+                          const matchTipo = esTipoInforme ? String(d.tipo).startsWith("Informe") : (d.tipo === payload.tipo);
+                          return !(d.paciente === payload.paciente && d.especialidad === payload.especialidad && matchTipo);
+                      });
                       CACHE_DATA.documentosClinicos.push(res.doc);
                       renderControlInformes();
                   } 
@@ -2573,13 +2580,22 @@
   // --- LÓGICA PARA SUBIR INFORMES "PROPIOS" ---
   let UPLOAD_PROPIO_DATA = null;
 
-  function triggerUploadPropio(paciente, idDrive, prestador) {
+  function triggerUploadPropio(paciente, idDrive, prestador, tipoRef) {
       if(!idDrive || idDrive.length < 5) return showToast("El paciente no tiene carpeta de Drive vinculada.", "error");
       
       const infoRef = resolverInfoPrestador({ prestador });
       let finalEspecialidad = normalizarEspecialidad(infoRef);
       
-      UPLOAD_PROPIO_DATA = { paciente, idDrive, prestador, especialidad: finalEspecialidad };
+      let tipoInforme = "Informe Junio";
+      if (tipoRef) {
+          const tUpper = String(tipoRef).toUpperCase();
+          if (tUpper.includes("DIC") || tUpper.includes("12")) tipoInforme = "Informe Diciembre";
+      } else {
+          const mes = new Date().getMonth() + 1;
+          tipoInforme = (mes <= 9) ? "Informe Junio" : "Informe Diciembre";
+      }
+
+      UPLOAD_PROPIO_DATA = { paciente, idDrive, prestador, especialidad: finalEspecialidad, tipo: tipoInforme };
       document.getElementById('file-upload-propio').click();
   }
 
@@ -2610,8 +2626,9 @@
               idDrive: UPLOAD_PROPIO_DATA.idDrive,
               prestador: UPLOAD_PROPIO_DATA.prestador,
               especialidad: UPLOAD_PROPIO_DATA.especialidad,
+              tipo: UPLOAD_PROPIO_DATA.tipo,
               // AQUÍ ARMAMOS EL NOMBRE COMPLETO CON PRESTACIÓN Y PRESTADOR:
-              fileName: `Informe_${pacienteLimpio}_${especialidadLimpia}.pdf`,
+              fileName: `${UPLOAD_PROPIO_DATA.tipo}_${pacienteLimpio}_${especialidadLimpia}.pdf`,
               base64Data: e.target.result
           };
 
